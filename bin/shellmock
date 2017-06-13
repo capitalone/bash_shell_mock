@@ -1,0 +1,375 @@
+#!/bin/bash
+#--------------------------------------------------------------------------------
+# Copyright 2017 Capital One Services, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#---------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------
+# File: shellmock
+# Purpose:
+#    This script provides mocking features to test the various bash scripts.
+#    They are made available in your current shell by sourcing this script.
+#    i.e.  source shellmock
+#---------------------------------------------------------------------------------
+
+#---------------------------------------
+# Helper function to do targeted testing
+#---------------------------------------
+skipIfNot()
+{
+    local doskip
+    if [ ! -z "$TEST_FUNCTION" ]; then
+        doskip=$(echo "$TEST_FUNCTION|" | awk 'BEGIN{RS="|"}{ if ($0=="'"$1"'") print "true";}')
+        if [ "$doskip" != "true" ]; then
+            skip
+        fi
+    fi
+}
+
+#---------------------------------------------------------------------
+# The variables are being pas$SED to sed and / are important to sed
+# so before we send to sed and write to the detour.properties we will
+# use sed to replace any / with \/ then the later sed will succede.
+#---------------------------------------------------------------------
+shellmock_escape_special_chars()
+{
+    $ECHO "$*" | $SED -e 's/\//\\\//g' -e 's/\[/\\\[/g' -e 's/\]/\\\]/g'
+}
+
+#--------------------------------------------------------------------------------------------------------------------------------------
+# This funciton is used to mock bash scripts.  It maps inputs to outputs and if a given script is
+# expecting varying results then they are played back in the order the expects were given.
+#
+# inputs are assumed to be the function name plus command line arguments.
+# outputs are the given string provided.
+#
+# usage: shellmock  [command] --source [command to source] --exec [command to exec] --match [args to match] --output [output to write]
+# --source -- specifies the script to soure if the args match
+# --exec -- specifies the script to execute if the args match
+# --match -- arguments to command that should be used to match the record
+# --output -- output that should be written to standard out if the args match
+# --type  -- type of match partial or exact
+#
+# NOTE: --source --exec and --output should be mutually exclusive. We should never use more than one at time in the the same expect
+#--------------------------------------------------------------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------
+# This function puts \ in front of " so that it can be passed to awk
+#-------------------------------------------------------------------
+shellmock_escape_quotes()
+{
+    $ECHO "$*" | $SED -e 's/"/\\"/g'
+}
+
+#------------------------------------
+# Use awk to dete$RMine the match list
+#------------------------------------
+mock_capture_match()
+{
+    local MATCH=$(shellmock_escape_quotes $1)
+    $CAT $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp | $AWK  'BEGIN{FS="@@"}{if ($5=="E" && ($1 == "'"$MATCH"'")) print; if ($5=="P" && index("'"$MATCH"'",$1)) print}'
+}
+
+#------------------------------------
+# Use awk to determine the match list
+#------------------------------------
+mock_state_match()
+{
+    local MATCH=$(shellmock_escape_quotes $1)
+    local rec=$($CAT $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp | $AWK  'BEGIN{FS="@@"}{if ($3=="E" && ($1 == "'"$MATCH"'")) print $2; if ($3=="P" && index("'"$MATCH"'",$1)) print $2}' | $TAIL -1)
+    $ECHO $rec
+}
+
+#------------------------------------------------------------------------
+# Create the mock stub and write mock expections and actions to tmp files
+#------------------------------------------------------------------------
+shellmock_expect()
+{
+    #---------------------------------------
+    # The first arg is the command basename.
+    #---------------------------------------
+    local cmd=$1
+    shift
+
+    local FORWARD=""
+    local MATCH=""
+    local OUTPUT=""
+    local STATUS=0
+    local MTYPE="E"
+
+
+    #------------------------------------------------
+    # read the switches so we know what to do
+    # --exec -- forward to another command
+    # --match -- arg list to the base command
+    # --output -- standard out that should be echoed
+    # --status -- exit status to return
+    # --type  -- exact or partial
+    #------------------------------------------------
+    while [[ $# -gt 1 ]]
+    do
+        local key="$1"
+        case $key in
+            -s|--source)
+                SOURCE="$2"
+                shift # past argument
+                ;;
+            -e|--exec)
+                FORWARD="$2"
+                shift # past argument
+                ;;
+            -t|--type)
+               if [ "$2" = "partial" ];then
+                   MTYPE="P"
+               elif [ "$2" = "exact" ]; then
+                   MTYPE="E"
+               else
+                   shellmock_capture_err "mock_expect type $2 not valid should be exact or partial"
+                   return 1
+               fi
+                shift # past argument
+                ;;
+            -m|--match)
+                MATCH="$2"
+                shift # past argument
+                ;;
+            -o|--output)
+                 #---------------------------------------------------------
+                 # Preserve any newlines in the string by replacing with %%
+                 # but also remove the trailing %% that awk puts there.
+                 #---------------------------------------------------------
+                 OUTPUT=$($ECHO "$2" | $AWK '$1=$1' ORS='%%' | $SED 's/%%$//g')
+                 shift # past argument
+                 ;;
+            -s|--status)
+                 STATUS="$2"
+                  shift # past argument
+                  ;;
+           *)
+                # unknown option
+                return 1
+                ;;
+        esac
+        shift # past argument or value
+    done
+
+
+    #-----------------------------------------------------------
+    # If the command has not been stubbed then generate the stub
+    #-----------------------------------------------------------
+    if [ ! -f tmpstubs/$cmd ];then
+
+        $MKDIR -p $BATS_TEST_DIRNAME/tmpstubs
+        $TOUCH $BATS_TEST_DIRNAME/tmpstubs/$1
+        $ECHO "#!/bin/bash" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO "export BATS_TEST_DIRNAME=$BATS_TEST_DIRNAME" >>$BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO ". shellmock" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO "shellmock_replay $cmd "'"$*"' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO 'status=$?' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO 'if [ $status -ne 0 ]; then' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO '    shellmock_capture_err $0 failed ' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO '    exit $status' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $ECHO 'fi'  >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $CHMOD 755 $BATS_TEST_DIRNAME/tmpstubs/$cmd
+    fi
+
+    #-----------------------------------------------------------
+    # There are two record formats one for forwards and onen for
+    # matching inputs and outputs
+    #-----------------------------------------------------------
+    if [ "$FORWARD" != "" ]; then
+        $ECHO "$MATCH@@FORWARD@@$FORWARD@@0@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+    elif [ "$SOURCE" != "" ]; then
+        $ECHO "$MATCH@@SOURCE@@$SOURCE@@0@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+    else
+        $ECHO "$MATCH@@OUTPUT@@$OUTPUT@@$STATUS@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+    fi
+
+    $ECHO "$MATCH@@1@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp
+
+}
+
+
+#----------------------------------------
+# This funciton is used by the mock stubs
+# usage: shellmock_replay [cmd]
+#----------------------------------------
+shellmock_replay()
+{
+   cmd="$1"
+   match="$2"
+
+   local rec
+   typeset -i rec
+
+   local count
+   typeset -i count
+
+   #-------------------------------------------------------------------------------------
+   # Get the record index.  If there are multiple matches then they are returned in order
+   #-------------------------------------------------------------------------------------
+   rec=$(mock_state_match "$match")
+   if [ "$rec" = "0" ]; then
+       shellmock_capture_err "No record match found $cmd *$match*"
+       return 99
+   fi
+
+   count=$(mock_capture_match "$match" | $WC -l)
+   entry=$(mock_capture_match "$match" | $HEAD -${rec} | $TAIL -1)
+
+   #-------------------------------
+   # If no entry is found then fail
+   #-------------------------------
+   if [ -z "$entry" ]; then
+       shellmock_capture_err "No match found for *$cmd* - *$match*"
+       exit 99
+   fi
+
+   local action=$($ECHO "$entry" | $AWK 'BEGIN{FS="@@"}{print $2}')
+   local output=$($ECHO "$entry" | $AWK 'BEGIN{FS="@@"}{print $3}')
+   local status=$($ECHO "$entry" | $AWK 'BEGIN{FS="@@"}{print $4}')
+   local mtype=$($ECHO "$entry" | $AWK 'BEGIN{FS="@@"}{print $5}')
+
+   #--------------------------------------------------------------------------------------
+   # If there are multiple responses for a given match then keep track of a response index
+   #--------------------------------------------------------------------------------------
+   if [ "$count" -gt 1 ]; then
+       $CP $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak
+       $CAT $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak | $AWK 'BEGIN{FS="@@"}{ if (($3=="E" && $1=="'"$match"'")||($3=="P"&& index("'"$match"'",$1))) printf("%s@@%d@@%s\n",$1,$2+1,$3) ; else printf("%s@@%d@@%s\n",$1,$2,$3) }' > $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp
+   fi
+
+   #--------------------------------------------------------------
+   # If this is a command forwarding request then call the command
+   #--------------------------------------------------------------
+   if [ "$action" = "SOURCE" ]; then
+       . $output
+       return $?
+
+   elif [ "$action" = "FORWARD" ]; then
+       local tmpcmd
+       $ECHO "$output" | $GREP "{}" > /dev/null
+       # If {} is present that means pass the match pattern into the exec script.
+       if [ $? -eq 0 ]; then
+           local tmpmatch=$(shellmock_escape_special_chars $match)
+           tmpcmd=$($ECHO "$output" | $SED "s/{}/$tmpmatch/g")
+       else
+           tmpcmd=$output
+        fi
+       $tmpcmd
+       return $?
+
+   #----------------------------
+   # Otherwise return the output
+   #----------------------------
+   else
+       $ECHO "$output" | $AWK 'BEGIN{FS="%%"}{ for (i=1;i<=NF;i++) {print $i}}'
+       return $status
+   fi
+}
+
+#-------------------------------
+# Records that script was called
+#-------------------------------
+shellmock_capture_cmd()
+{
+    $ECHO "$*" >> $CAPTURE_FILE
+}
+
+#-------------------------
+# Write errors to err file
+#-------------------------
+shellmock_capture_err()
+{
+    $ECHO "$*" >> $shellmock_capture_err
+}
+
+#----------------------------------
+# Clean up an previous capture file
+#----------------------------------
+shellmock_clean()
+{
+    $RM -f $CAPTURE_FILE
+    $RM -f $shellmock_capture_err
+    if [ -d $BATS_TEST_DIRNAME/tmpstubs ]; then
+        $RM -rf $BATS_TEST_DIRNAME/tmpstubs
+    fi
+}
+
+#---------------------------------------------------
+# Read the capture file into an array called capture
+#---------------------------------------------------
+shellmock_verify()
+{
+
+    index=0
+    while read line ; do
+        capture[$index]="$line"
+        index=$(($index+1))
+    done < $CAPTURE_FILE
+
+    export capture
+    return 0
+}
+
+#-------------------------------------------------------------------------------------------------------
+# In case users need to mock lower level commands then make sure that shellmock knows the exact location of
+# key commands it needs.
+#-------------------------------------------------------------------------------------------------------
+if [ -z "$ECHO" ]; then
+    export ECHO=`which echo`
+fi
+if [ -z "$CP" ]; then
+    export CP=`which cp`
+fi
+if [ -z "$CAT" ]; then
+    export CAT=`which cat`
+fi
+if [ -z "$RM" ]; then
+    export RM=`which rm`
+fi
+if [ -z "$AWK" ]; then
+    export AWK=`which awk`
+fi
+if [ -z "$GREP" ]; then
+    export GREP=`which grep`
+fi
+if [ -z "$MKDIR" ]; then
+    export MKDIR=`which mkdir`
+fi
+if [ -z "$TOUCH" ]; then
+    export TOUCH=`which touch`
+fi
+if [ -z "$CHMOD" ]; then
+    export CHMOD=`which chmod`
+fi
+if [ -z "$SED" ]; then
+    export SED=`which sed`
+fi
+if [ -z "$HEAD" ]; then
+    export HEAD=`which head`
+fi
+if [ -z "$TAIL" ]; then
+    export TAIL=`which tail`
+fi
+if [ -z "$WC" ]; then
+    export WC=`which wc`
+fi
+
+
+
+export BATS_TEST_DIRNAME
+export CAPTURE_FILE=$BATS_TEST_DIRNAME/shellmock.out
+export shellmock_capture_err=$BATS_TEST_DIRNAME/shellmock.err
+export PATH=$BATS_TEST_DIRNAME/tmpstubs:$PATH

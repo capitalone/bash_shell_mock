@@ -1,0 +1,311 @@
+:toc:
+:toc-placement!:
+:toc-position: left
+:toclevels: 5
+:source-highlighter: highlight
+:imagesdir: images
+
+= Bash Shell Mock
+
+toc::[]
+// use additional conditions to support other environments and extensions
+ifdef::env-github[:outfilesuffix: .adoc]
+
+== Overview
+
+**Shellmock** is a bash shell script mocking utility/framework.  It was written to be a companion of the https://github.com/sstephenson/bats[Bash Automated Testing System].
+
+Typically, mocking frameworks return certain outputs when particular inputs are provided.  When enabling mocks for scripts, **Shellmock** defines the "input" as the command line arguments to the script and it defines
+the "output" as the exit status and any standard output. In addition it will allow you to provide an alternate stubbed behavior.  In most testing scenarios just knowing what was called and the command line args is sufficient, but some
+ advanced test cases may require new behavior.
+
+Given the bash command "cp file1 file2", a stub might be defined to return status 0.  The stub could also echo "cp file1 file2" to standard out.  Using Bats **status**, **line** or **output** variables
+you can verify that "cp file1 fil2" was written which would confirm that the script was called.  The example below is a snippet from a **bats** script. It is assumed that **mycmd** is the script being testing and it calls "cp file1 file2" during its execution.
+
+```bats
+run mycmd
+[ "${status}" = "0" ]
+[ "${line[0]}" = "cp file1 file2" ]
+```
+
+One approach for stubbing is to create bash scripts with the same names as the real scripts or programs and then override the **PATH** to the stubs and there by short circuiting the real path.  Depending on the number of scripts to stub this can be taxing and the stubbing logic can become complex.  This is where **Shellmock** helps.  **Shellmock** lets you define the mocks inline within the **bats** tests.  It creates and manages the stub scripts behind the scenes. The added benefit is that you can view the tests and the test data together making tests easier to manage.
+
+== Enabling Mocks in your Bats tests
+
+The first step is to source **shellmock** in the **setup()** function and call the **shellmock_cleanup** function from the bats **teardown** function.  To assist in troubleshooting a new variable **TEST_FUNCTION** was added that
+can be used to restrict testing to a single function and skipping all others.  In that case I choose not to clean up so that I can better troubleshoot any test failures associated with mocking.  The section below is boiler plate and I would add to all my test files.
+
+```bash
+
+setup()
+{
+    . shellmock
+    shellmock_clean
+}
+
+teardown()
+{
+    if [ -z "$TEST_FUNCTION" ]; then
+        shellmock_clean
+    fi
+}
+
+```
+
+
+== Adding Mocks in one of your tests
+
+In the link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo, the status code from **grep** is used to control the logic flow of the script.  We can use Shellmock's **shellmock_expect** command to simulate a failure scenario when the target parameters are seen.
+In the snippet below the return status will be "1" when the command line arguments are **"sample" sample.out**.  If **grep** is called with any other arguments then a failure will be returned with status **99**.
+
+```bash
+@test "sample.sh-failure" {
+
+    shellmock_expect grep --status 1 --match '"sample" sample.out'
+
+    run ./sample.sh
+    [ "$status" = "1" ]
+    [ "$output" = "sample not found" ]
+
+
+}
+```
+
+After the status and output of the script has been validated as needed, then the final piece is to verify that all of the expected mocks were called. The function **shellmock_verify** reads the **shellmock.out** file which contains a record
+of all mock invocations.  The lines of the file are written to an array variable called **capture**.
+
+As you will note there are some challenges with quotes in the verifcation pass.  The quotes do not exist in the verification line.  There maybe ways to preserve them, but initially it proved to be a challenge.  This was good enough for me for now.
+
+
+```bash
+@test "sample.sh-failure" {
+
+    shellmock_expect grep --status 1 --match '"sample line" sample.out'
+
+    run ./sample.sh
+    [ "$status" = "1" ]
+    [ "$output" = "sample not found" ]
+
+    shellmock_verify
+    [ "${capture[0]}" = 'grep-stub sample line sample.out' ]
+
+}
+```
+
+To see a demonstration of the sample tests running, you will first need to install **shellmock** as described later and then follow the steps below.
+
+```
+cd sample-bats
+bats sample.bats
+```
+
+You should expect to see output as follows:
+```
+ ✓ sample.sh-success
+ ✓ sample.sh-failure
+
+2 tests, 0 failures
+```
+== Shellmock Functions
+
+=== skipIfNot
+
+**skipIfNot** is a very useful function that would be a great addition to **bats** itself.  There is currently a PR against **bats** for this ability.   For now I have included this function in **shellmock**.  This function will allow you to target particular tests while excluding others.
+To use it you must define an environment variable called **TEST_FUNCTION**.
+
+**TEST_FUNCTION** may contain one or more test names delimited by a pipe.  In the example below only tests "sample.sh failure" and "sample.sh success" would be executed.  All others would be skipped.
+
+```bash
+$export TEST_FUNCTION="sample.sh-failure|sample.sh-success"
+```
+
+The next step is to instrument the tests with **skipIfNot**.  **skipIfNot** requires one parameter which is the test name. The recommended approach is to add **skipIfNot** to the **setup** function and leverage the **BATS_TEST_DESCRIPTION** variable.  Alternatively, you
+can instrument each function with **skipIfNot** and pass in any alias for the test name you like.
+
+```bash
+setup()
+{
+    # Source the shellmock functions into the shell.
+    . ../bin/shellmock
+
+    skipIfNot "$BATS_TEST_DESCRIPTION"
+
+    shellmock_clean
+}
+
+@test "sample.sh-failure" {
+
+.
+.
+.
+
+}
+```
+
+
+=== shellmock_clean
+
+**shellmock_clean** cleans up various temp files used by **shellmock**:
+
+- the **tmpstubs** directory - that is used to store stub data and scripts
+- **shellmock.out** - lists every stub call made
+- **shellmock.err** - lists errors encountered the stubs (ie not match found)
+
+This command should be placed in the **setup** and **teardown** functions.  To aid in troubleshooting, I typically recommend only calling it if **TEST_FUNCTION** is not set.  This keeps stubs scripts and data from being deleted and allows you to
+investigate issues easier.
+
+=== shellmock_verify
+
+**shellmock_verify** converts all **shellmock.out** lines into a variable array called **capture**.  This allows testers to verify which stubs were called and in what order.
+
+```bash
+@test "sample.sh-failure" {
+.
+.
+.
+    shellmock_verify
+    [ "${capture[0]}" = "some-stub arg1 arg2" ]
+    [ "${capture[1]}" = "some-stub2 arg1 arg2" ]
+}
+```
+
+=== shellmock_expect
+
+**shellmock_expect** allows you specify the command to be mocked and how the function should be mocked.  The behavior can be in terms of status code, output to echo or a custom
+behavior that you provide.
+
+==== usage: shellmock_expect [cmd] [--type partial | exact ] [--status #] --match [arg1 arg2 arg3...] [--exec cmdstring ] [--source cmdstring] [--output texttoecho]
+
+|===
+|**Item**|**Description**|**Required?**
+|cmd|unix command to mock|Yes.
+|--type|Type of match **partial** or **exact**|No. Defaults to **exact**
+|--match|Arguments passed to cmd that indicate a match to mock.|Yes.
+|--exec|Command string to execute for custom behavior.|No.
+|--source|Command string to source.|No.
+|--output|Text string to echo if there is a match.|No.
+|--status|status code to return|No. Defaults to 0
+|===
+
+**shellmock_exect** supports returning a single or multiple responses for a given match criteria.  The responses will be returned in the order defined.  Once all response are seen the last response will be returned indefinitely.
+
+==== examples
+
+These examples assume that the "grep string1 file1" is the unix command being mocked.
+
+===== Basic mock with success status
+
+If the **grep** command is run by a script under test it will return the default status of 0.  In order
+to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+
+```bash
+shellmock_expect grep --match "string1 file2"
+
+run testscript.sh
+[ "$status" = "0" ]
+
+shellmock_verify
+[ "${capture[0]} = "grep-stub string1 file2" ]
+
+```
+
+===== Basic mock with failed status
+
+If the **grep** command is run by a script under test it will return the status of 1.  In order
+to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+
+```bash
+shellmock_expect grep --status 1 --match "string1 file2"
+
+run testscript.sh
+[ "$status" = "1" ]
+
+shellmock_verify
+[ "${capture[0]} = "grep-stub string1 file2" ]
+
+```
+
+===== Mock with partial mock
+
+If the **grep** command is run by a script under test it will return a status 0 if arg1 is "string1" regardless of the rest of the args.  In order
+to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+
+```bash
+shellmock_expect grep --status 0 --type partial --match string1
+
+run testscript.sh
+[ "$status" = "0" ]
+
+shellmock_verify
+[ "${capture[0]} = "grep-stub string1 file2" ]
+[ "${capture[1]} = "grep-stub string1 file3" ]
+
+```
+
+===== Mock with custom behavior with custom input args
+
+If the **grep** command is run by a script under test it will execute the custom script called "stubs/mycustom" and pass "tag1" as input.  By passing {} to the script then
+**shellmock** will replace {} with $* so that you will get all of the matched arguments passed into the custom script as well.
+
+For this example you can verify the **status**, the **output**/**line**, and the **capture** variables.
+
+```bash
+shellmock_expect grep --status 0 --type exact --match "string1 file1" -exec "stubs/mycustom tag1 {}"
+
+run testscript.sh
+[ "$status" = "0" ]
+[ "${line[0]}" = "mycustom output1" ]
+[ "${line[1]}" = "mycustom output2" ]
+
+shellmock_verify
+[ "${capture[0]} = "grep-stub string1 file1" ]
+
+```
+
+===== Mock with custom output
+
+If the **grep** command is run by a script under test it will return a status 0 if arg1 is "string1" and arg2 is "file1".  It will also write "some cool text" to stdout.
+For this example you can verify the **status**, the **output**/**line**, and the **capture** variables.
+
+```bash
+shellmock_expect grep --status 0 --type exact --match "string1 file1" --output "some cool text"
+
+run testscript.sh
+[ "$status" = "0" ]
+[ "${line[0]}" = "some cool text" ]
+
+shellmock_verify
+[ "${capture[0]} = "grep-stub string1 file1" ]
+
+```
+
+== Installing Bash Shell Mock from source
+
+Check out a copy of the **shellmock** repository. Then, either add the **shellmock**
+`bin` directory to your `$PATH`, or run the provided `install.sh`
+command with the location to the prefix in which you want to install
+**Shellmock**. For example, to install Bats into `/usr/local`,
+
+    $ git clone [repository_url]
+    $ cd shellmock
+    $ ./install.sh /usr/local
+
+Note that you may need to run `install.sh` with `sudo` if you do not
+have permission to write to the installation prefix.
+
+== Limitations
+
+The **Shellmock** mocking approach does have impact on how write your scripts.  The key to using any mocking in unix scripts is that the scripts must be reached via the PATH variable and you can not use
+full or relative pathing to the script.  **Shellmock** uses the PATH variable to short circuit calling the "real" script or program.
+
+== Contributors
+We welcome Your interest in Capital One’s Open Source Projects (the “Project”). Any Contributor to the Project must accept and sign an Agreement indicating agreement to the license terms below. Except for the license granted in this Agreement to Capital One and to recipients of software distributed by Capital One, You reserve all right, title, and interest in and to Your Contributions; this Agreement does not impact Your rights to use Your own Contributions for any other purpose.
+
+https://docs.google.com/forms/d/19LpBBjykHPox18vrZvBbZUcK6gQTj7qv1O5hCduAZFU/viewform[Sign the Individual Agreement]
+
+https://docs.google.com/forms/d/e/1FAIpQLSeAbobIPLCVZD_ccgtMWBDAcN68oqbAJBQyDTSAQ1AkYuCp_g/viewform?usp=send_form[Sign the Corporate Agreement]
+
+== Code of Conduct
+This project adheres to the http://www.capitalone.io/codeofconduct[Open Code of Conduct]. By participating, you are expected to honor this code.
+
+
