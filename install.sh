@@ -35,4 +35,4 @@ mkdir -p "$PREFIX"/bin
 cp -R bin/* "$PREFIX"/bin/
 
 
-echo "Installed shellbock to $PREFIX/bin/shellmock"
+echo "Installed bash_shell_mock to $PREFIX/bin/shellmock"
