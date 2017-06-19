@@ -287,7 +287,7 @@ command with the location to the prefix in which you want to install
 **Shellmock**. For example, to install Bats into `/usr/local`,
 
     $ git clone [repository_url]
-    $ cd shellmock
+    $ cd bash_shell_mock
     $ ./install.sh /usr/local
 
 Note that you may need to run `install.sh` with `sudo` if you do not
