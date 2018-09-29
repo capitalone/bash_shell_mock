@@ -79,7 +79,7 @@ shellmock_escape_quotes()
 mock_capture_match()
 {
     local MATCH=$(shellmock_escape_quotes $1)
-    $CAT $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp | $AWK  'BEGIN{FS="@@"}{if ($5=="E" && ($1 == "'"$MATCH"'")) print; if ($5=="P" && index("'"$MATCH"'",$1)) print}'
+    $CAT "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp" | $AWK  'BEGIN{FS="@@"}{if ($5=="E" && ($1 == "'"$MATCH"'")) print; if ($5=="P" && index("'"$MATCH"'",$1)) print}'
 }
 
 #------------------------------------
@@ -88,7 +88,7 @@ mock_capture_match()
 mock_state_match()
 {
     local MATCH=$(shellmock_escape_quotes $1)
-    local rec=$($CAT $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp | $AWK  'BEGIN{FS="@@"}{if ($3=="E" && ($1 == "'"$MATCH"'")) print $2; if ($3=="P" && index("'"$MATCH"'",$1)) print $2}' | $TAIL -1)
+    local rec=$($CAT "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp" | $AWK  'BEGIN{FS="@@"}{if ($3=="E" && ($1 == "'"$MATCH"'")) print $2; if ($3=="P" && index("'"$MATCH"'",$1)) print $2}' | $TAIL -1)
     $ECHO $rec
 }
 
@@ -169,21 +169,21 @@ shellmock_expect()
     #-----------------------------------------------------------
     # If the command has not been stubbed then generate the stub
     #-----------------------------------------------------------
-    if [ ! -f tmpstubs/$cmd ];then
+    if [ ! -f "$BATS_TEST_DIRNAME/tmpstubs/$cmd" ]; then
 
-        $MKDIR -p $BATS_TEST_DIRNAME/tmpstubs
-        $TOUCH $BATS_TEST_DIRNAME/tmpstubs/$1
-        $ECHO "#!/bin/bash" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO "export BATS_TEST_DIRNAME=$BATS_TEST_DIRNAME" >>$BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO ". shellmock" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO "shellmock_replay $cmd "'"$*"' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO 'status=$?' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO 'if [ $status -ne 0 ]; then' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO '    shellmock_capture_err $0 failed ' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO '    exit $status' >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $ECHO 'fi'  >> $BATS_TEST_DIRNAME/tmpstubs/$cmd
-        $CHMOD 755 $BATS_TEST_DIRNAME/tmpstubs/$cmd
+        $MKDIR -p "$BATS_TEST_DIRNAME/tmpstubs"
+        $TOUCH "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO "#!/bin/bash" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO "export BATS_TEST_DIRNAME=\"$BATS_TEST_DIRNAME\"" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO ". shellmock" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO "shellmock_replay $cmd "'"$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO 'status=$?' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO 'if [ $status -ne 0 ]; then' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO '    shellmock_capture_err $0 failed ' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO '    exit $status' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO 'fi'  >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $CHMOD 755 "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
     fi
 
     #-----------------------------------------------------------
@@ -191,14 +191,14 @@ shellmock_expect()
     # matching inputs and outputs
     #-----------------------------------------------------------
     if [ "$FORWARD" != "" ]; then
-        $ECHO "$MATCH@@FORWARD@@$FORWARD@@0@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+        $ECHO "$MATCH@@FORWARD@@$FORWARD@@0@@$MTYPE" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp"
     elif [ "$SOURCE" != "" ]; then
-        $ECHO "$MATCH@@SOURCE@@$SOURCE@@0@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+        $ECHO "$MATCH@@SOURCE@@$SOURCE@@0@@$MTYPE" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp"
     else
-        $ECHO "$MATCH@@OUTPUT@@$OUTPUT@@$STATUS@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp
+        $ECHO "$MATCH@@OUTPUT@@$OUTPUT@@$STATUS@@$MTYPE" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp"
     fi
 
-    $ECHO "$MATCH@@1@@$MTYPE" >> $BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp
+    $ECHO "$MATCH@@1@@$MTYPE" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp"
 
 }
 
@@ -247,8 +247,8 @@ shellmock_replay()
    # If there are multiple responses for a given match then keep track of a response index
    #--------------------------------------------------------------------------------------
    if [ "$count" -gt 1 ]; then
-       $CP $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak
-       $CAT $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak | $AWK 'BEGIN{FS="@@"}{ if (($3=="E" && $1=="'"$match"'")||($3=="P"&& index("'"$match"'",$1))) printf("%s@@%d@@%s\n",$1,$2+1,$3) ; else printf("%s@@%d@@%s\n",$1,$2,$3) }' > $BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp
+       $CP "$BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp" "$BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak"
+       $CAT "$BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.bak" | $AWK 'BEGIN{FS="@@"}{ if (($3=="E" && $1=="'"$match"'")||($3=="P"&& index("'"$match"'",$1))) printf("%s@@%d@@%s\n",$1,$2+1,$3) ; else printf("%s@@%d@@%s\n",$1,$2,$3) }' > "$BATS_TEST_DIRNAME/tmpstubs/$1.playback.state.tmp"
    fi
 
    #--------------------------------------------------------------
@@ -285,7 +285,7 @@ shellmock_replay()
 #-------------------------------
 shellmock_capture_cmd()
 {
-    $ECHO "$*" >> $CAPTURE_FILE
+    $ECHO "$*" >> "$CAPTURE_FILE"
 }
 
 #-------------------------
@@ -293,7 +293,7 @@ shellmock_capture_cmd()
 #-------------------------
 shellmock_capture_err()
 {
-    $ECHO "$*" >> $shellmock_capture_err
+    $ECHO "$*" >> "$shellmock_capture_err"
 }
 
 #----------------------------------
@@ -301,10 +301,10 @@ shellmock_capture_err()
 #----------------------------------
 shellmock_clean()
 {
-    $RM -f $CAPTURE_FILE
-    $RM -f $shellmock_capture_err
-    if [ -d $BATS_TEST_DIRNAME/tmpstubs ]; then
-        $RM -rf $BATS_TEST_DIRNAME/tmpstubs
+    $RM -f "$CAPTURE_FILE"
+    $RM -f "$shellmock_capture_err"
+    if [ -d "$BATS_TEST_DIRNAME/tmpstubs" ]; then
+        $RM -rf "$BATS_TEST_DIRNAME/tmpstubs"
     fi
 }
 
@@ -318,7 +318,7 @@ shellmock_verify()
     while read line ; do
         capture[$index]="$line"
         index=$(($index+1))
-    done < $CAPTURE_FILE
+    done < "$CAPTURE_FILE"
 
     export capture
     return 0
