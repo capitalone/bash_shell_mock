@@ -61,6 +61,9 @@ teardown()
     run cp a b
     [ "$status" = "1" ]
     [ "$output" = "mock a b failed" ]
+
+    shellmock_verify
+    [ "${capture[0]}" = "cp-stub a b" ]
 }
 
 @test "shellmock_expect multiple responses" {
@@ -192,4 +195,19 @@ teardown()
     . tmpstubs/test.bash
 
     [ "$TEST_PROP" = "test-prop" ]
+}
+
+@test "shellmock_expect validate shellmock_verify" {
+
+    skipIfNot validate-verify
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type exact  --match "" --exec "echo executed."
+
+    run cp
+    [ "$status" = "0" ]
+    [ "$output" = "executed." ]
+
+    shellmock_verify
+    [ "${capture[0]}" = "cp-stub" ]
 }
