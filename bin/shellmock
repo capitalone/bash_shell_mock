@@ -285,7 +285,9 @@ shellmock_replay()
 #-------------------------------
 shellmock_capture_cmd()
 {
-    $ECHO "$*" >> "$CAPTURE_FILE"
+    # trim leading and trailing spaces from the command
+    cmd=`echo "$*" | awk '{$1=$1};1'`
+    $ECHO "${cmd}" >> $CAPTURE_FILE
 }
 
 #-------------------------
