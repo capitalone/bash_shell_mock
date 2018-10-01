@@ -154,6 +154,11 @@ setup()
 This command should be placed in the **setup** and **teardown** functions.  To aid in troubleshooting, I typically recommend only calling it if **TEST_FUNCTION** is not set.  This keeps stubs scripts and data from being deleted and allows you to
 investigate issues easier.
 
+A useful practice is to place the cleanup in an if statement and ignore cleanup if the
+TEST_FUNCTION variable is set or some other debug variable.
+This allows you to have debugging access to the shellmock temp files
+for troubleshooting tests.
+
 === shellmock_verify
 
 **shellmock_verify** converts all **shellmock.out** lines into a variable array called **capture**.  This allows testers to verify which stubs were called and in what order.
@@ -293,6 +298,13 @@ command with the location to the prefix in which you want to install
 Note that you may need to run `install.sh` with `sudo` if you do not
 have permission to write to the installation prefix.
 
+== Debugging Tests
+
+If the **shellmock_clean** function is short circuited then the temp files will remain.
+
+shellmock.out contains all of the mock commands that have been run and is used by the
+**shellmock_verify** command.
+
 == Limitations
 
 The **Shellmock** mocking approach does have impact on how write your scripts.  The key to using any mocking in unix scripts is that the scripts must be reached via the PATH variable and you can not use
@@ -307,5 +319,4 @@ https://docs.google.com/forms/d/e/1FAIpQLSeAbobIPLCVZD_ccgtMWBDAcN68oqbAJBQyDTSA
 
 == Code of Conduct
 This project adheres to the http://www.capitalone.io/codeofconduct[Open Code of Conduct]. By participating, you are expected to honor this code.
-
 
