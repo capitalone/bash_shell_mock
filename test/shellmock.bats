@@ -37,6 +37,9 @@ teardown()
     if [ -z "$TEST_FUNCTION" ]; then
         shellmock_clean
     fi
+    if [ -d "$TEST_TEMP_DIR" ]; then
+        rm -rf "$TEST_TEMP_DIR"
+    fi
 }
 
 @test "shellmock_expect --status 0" {
@@ -192,4 +195,100 @@ teardown()
     . tmpstubs/test.bash
 
     [ "$TEST_PROP" = "test-prop" ]
+}
+
+@test "shellmock_expect multiple responses outside \$BATS_TEST_DIRNAME" {
+
+    skipIfNot outside-dirname
+
+    shellmock_clean
+
+    export TEST_TEMP_DIR="$BATS_TEST_DIRNAME/tempbin"
+    mkdir -p "$TEST_TEMP_DIR"
+    export BATS_TEST_DIRNAME=$TEST_TEMP_DIR
+    export CAPTURE_FILE=$BATS_TEST_DIRNAME/shellmock.out
+    export shellmock_capture_err=$BATS_TEST_DIRNAME/shellmock.err
+    export PATH=$BATS_TEST_DIRNAME/tmpstubs:$PATH
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --match "a b" --output "mock a b success"
+    shellmock_expect cp --status 1 --match "a b" --output "mock a b failed"
+
+    run cp a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock a b success" ]
+
+    run cp a b
+    [ "$status" = "1" ]
+    [ "$output" = "mock a b failed" ]
+
+    # not a match
+    run cp a c
+    [ "$status" = "99" ]
+}
+
+@test "shellmock_clean inside directory with spaces" {
+
+    skipIfNot clean-dir-spaces
+
+    export TEST_TEMP_DIR="$BATS_TEST_DIRNAME/temp dir"
+    mkdir -p "$TEST_TEMP_DIR"
+    export BATS_TEST_DIRNAME="$TEST_TEMP_DIR"
+    export CAPTURE_FILE="$BATS_TEST_DIRNAME/shellmock.out"
+    export shellmock_capture_err="$BATS_TEST_DIRNAME/shellmock.err"
+    export PATH="$BATS_TEST_DIRNAME/tmpstubs:$PATH"
+
+    touch "$CAPTURE_FILE"
+    touch "$shellmock_capture_err"
+    mkdir -p "$BATS_TEST_DIRNAME/tmpstubs"
+
+    shellmock_clean
+    [ ! -f "$CAPTURE_FILE" ]
+    [ ! -f "$shellmock_capture_err" ]
+    [ ! -d "$BATS_TEST_DIRNAME/tmpstubs" ]
+}
+
+@test "shellmock_expect inside directory with spaces" {
+
+    skipIfNot expect-dir-spaces
+
+    shellmock_clean
+
+    TEST_TEMP_DIR="$BATS_TEST_DIRNAME/temp dir"
+    mkdir -p "$TEST_TEMP_DIR"
+    export BATS_TEST_DIRNAME="$TEST_TEMP_DIR"
+    export CAPTURE_FILE="$BATS_TEST_DIRNAME/shellmock.out"
+    export shellmock_capture_err="$BATS_TEST_DIRNAME/shellmock.err"
+    export PATH="$BATS_TEST_DIRNAME/tmpstubs:$PATH"
+
+    shellmock_clean
+    shellmock_expect cp --exec "echo executed."
+
+    run cp
+    [ "$status" = "0" ]
+    [ "$output" = "executed." ]
+}
+
+@test "shellmock_verify inside directory with spaces" {
+
+    skipIfNot verify-dir-spaces
+
+    shellmock_clean
+    shellmock_expect cp --exec "echo executed."
+
+    run cp
+    [ "$status" = "0" ]
+    [ "$output" = "executed." ]
+
+    TEST_TEMP_DIR="$BATS_TEST_DIRNAME/temp dir"
+    mkdir -p "$TEST_TEMP_DIR"
+    mv "$BATS_TEST_DIRNAME/tmpstubs" "$TEST_TEMP_DIR/tmpstubs"
+    export BATS_TEST_DIRNAME="$TEST_TEMP_DIR"
+
+    mv "$CAPTURE_FILE" "$BATS_TEST_DIRNAME/shellmock.out"
+    export CAPTURE_FILE="$BATS_TEST_DIRNAME/shellmock.out"
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = "cp-stub" ]
 }
