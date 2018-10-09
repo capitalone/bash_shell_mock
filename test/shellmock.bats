@@ -292,3 +292,15 @@ teardown()
     [ "${#capture[@]}" = "1" ]
     [ "${capture[0]}" = "cp-stub" ]
 }
+
+@test "shellmock_expect --match '--version'" {
+
+    skipIfNot match-version
+
+    shellmock_clean
+    shellmock_expect foo --match "--version" --output "Foo version"
+
+    run foo --version
+    [ "$status" = "0" ]
+    [ "$output" = "Foo version" ]
+}
