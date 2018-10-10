@@ -70,7 +70,7 @@ shellmock_escape_special_chars()
 #-------------------------------------------------------------------
 shellmock_escape_quotes()
 {
-    $ECHO "$*" | $SED -e 's/"/\\"/g'
+    POSIXLY_CORRECT=1 $ECHO "$*" | $SED -e 's/"/\\"/g'
 }
 
 #------------------------------------
