@@ -5,6 +5,9 @@
 :source-highlighter: highlight
 :imagesdir: images
 
+[.text-center]
+image::https://raw.githubusercontent.com/odb/official-bash-logo/master/assets/Logos/Identity/PNG/BASH_logo-transparent-bg-color.png[]
+
 = Bash Shell Mock
 
 toc::[]
