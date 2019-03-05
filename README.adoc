@@ -43,7 +43,6 @@ can be used to restrict testing to a single function and skipping all others.  I
 setup()
 {
     . shellmock
-    shellmock_clean
 }
 
 teardown()
