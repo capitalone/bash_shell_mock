@@ -307,6 +307,17 @@ If the **shellmock_clean** function is short circuited then the temp files will 
 shellmock.out contains all of the mock commands that have been run and is used by the
 **shellmock_verify** command.
 
+If you following the sample and set TEST_FUNCTION then the tmpstubs directory will remain and not be cleaned up.  Inside that
+directory you will find err out and debug files.
+
+For each file there will be two .tmp data files:
+
+- shellmock.out - shows which mocks were executed and their parameters
+- shellmock.err - shows the results of the matches
+- shellmock-debug.out - shows the results of what would have been sent to standard out array $lines which bats also allows you to match on.
+- *.playback.capture.tmp - shows defines each of the expectations.  There will be on of these files for every mocked script.
+- *.playback.state.tmp - keeps track of multiple responses for the same mock
+
 == Limitations
 
 The **Shellmock** mocking approach does have impact on how write your scripts.  The key to using any mocking in unix scripts is that the scripts must be reached via the PATH variable and you can not use
