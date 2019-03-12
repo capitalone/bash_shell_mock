@@ -79,7 +79,6 @@ shellmock_escape_quotes()
 mock_capture_match()
 {
     local MATCH=$(shellmock_escape_quotes $1)
-    echo "$AWK  'BEGIN{FS="@@"}{if ($5=="E" && ($1 == "'"$MATCH"'")) print; if ($5=="P" && index("'"$MATCH"'",$1)) print; if ($5=="X" && match("'"$MATCH"'", $1)) print}'" > chip.out
     $CAT "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp" | $AWK  'BEGIN{FS="@@"}{if ($5=="E" && ($1 == "'"$MATCH"'")) print; if ($5=="P" && index("'"$MATCH"'",$1)) print; if ($5=="X" && match("'"$MATCH"'", $1)) print}'
 }
 
@@ -89,7 +88,6 @@ mock_capture_match()
 mock_state_match()
 {
     local MATCH=$(shellmock_escape_quotes $1)
-    echo "$AWK  'BEGIN{FS="@@"}{if ($3=="E" && ($1 == "'"$MATCH"'")) print $2; if ($3=="P" && index("'"$MATCH"'",$1)) print $2;if ($3=="X" && match("'"$MATCH"'", $1)) print $2}'" > chip.out
     local rec=$($CAT "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.state.tmp" | $AWK  'BEGIN{FS="@@"}{if ($3=="E" && ($1 == "'"$MATCH"'")) print $2; if ($3=="P" && index("'"$MATCH"'",$1)) print $2;if ($3=="X" && match("'"$MATCH"'", $1)) print $2}' | $TAIL -1)
     $ECHO $rec
 }
@@ -307,13 +305,25 @@ shellmock_capture_err()
 #----------------------------------------------------------------------
 # This utility function captures user output and writes to a debug file
 #----------------------------------------------------------------------
-shellmock_capture_debug()
+shellmock_dump()
 {
     if [ ! -z "$TEST_FUNCTION" ]; then
+        POSIXLY_CORRECT=1 $ECHO "DUMP-START: stdout" >> "$shellmock_capture_debug"
         for idx in ${!lines[*]}
         do
-            echo "${lines[$idx]}" >> "$shellmock_capture_debug"
+            POSIXLY_CORRECT=1 $ECHO "${lines[$idx]}" >> "$shellmock_capture_debug"
         done
+        POSIXLY_CORRECT=1 $ECHO "DUMP-END: stdout" >> "$shellmock_capture_debug"
+    fi
+}
+
+#----------------------------------------------------------------------
+# This utility function captures user output and writes to a debug file
+#----------------------------------------------------------------------
+shellmock_debug()
+{
+    if [ ! -z "$TEST_FUNCTION" ]; then
+        POSIXLY_CORRECT=1 $ECHO "$1" >> "$shellmock_capture_debug"
     fi
 }
 
