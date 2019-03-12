@@ -200,7 +200,7 @@ TEST_FUNCTION is set.
 **shellmock_expect** allows you specify the command to be mocked and how the function should be mocked.  The behavior can be in terms of status code, output to echo or a custom
 behavior that you provide.
 
-==== usage: shellmock_expect [cmd] [--type partial | exact ] [--status #] --match [arg1 arg2 arg3...] [--exec cmdstring ] [--source cmdstring] [--output texttoecho]
+==== usage: shellmock_expect [cmd] [--type partial | exact | regex ] [--status #] --match [arg1 arg2 arg3...] [--exec cmdstring ] [--source cmdstring] [--output texttoecho]
 
 |===
 |**Item**|**Description**|**Required?**
