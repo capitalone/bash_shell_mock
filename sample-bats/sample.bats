@@ -50,6 +50,9 @@ teardown()
 @test "sample.sh-success" {
 
     run ./sample.sh
+
+    shellmock_dump
+
     [ "$status" = "0" ]
 
     # Validate using lines array.
@@ -70,7 +73,12 @@ teardown()
 
     shellmock_expect grep --status 1 --match '"sample line" sample.out'
 
+    shellmock_debug "starting the test"
+
     run ./sample.sh
+
+    shellmock_dump
+
     [ "$status" = "1" ]
     [ "$output" = "sample not found" ]
 

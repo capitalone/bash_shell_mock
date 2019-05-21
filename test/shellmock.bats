@@ -304,3 +304,24 @@ teardown()
     [ "$status" = "0" ]
     [ "$output" = "Foo version" ]
 }
+
+@test "shellmock_expect --status 0 regex-match" {
+
+    skipIfNot regex-match
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type regex --match "-a -s script\(\'t.*\)" --output "mock success"
+
+    run cp -a -s "script('testit')"
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run cp -a -s "script('testit2')"
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run cp -a -s "script('Testit2')"
+    [ "$status" = "99" ]
+
+}
+
