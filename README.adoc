@@ -16,7 +16,7 @@ ifdef::env-github[:outfilesuffix: .adoc]
 
 == Overview
 
-**Shellmock** is a bash shell script mocking utility/framework.  It was written to be a companion of the https://github.com/sstephenson/bats[Bash Automated Testing System].
+**Shellmock** is a bash shell script mocking utility/framework.  It was written to be a companion of the https://github.com/bats-core/bats-core[Bash Automated Testing System].
 
 Typically, mocking frameworks return certain outputs when particular inputs are provided.  When enabling mocks for scripts, **Shellmock** defines the "input" as the command line arguments to the script and it defines
 the "output" as the exit status and any standard output. In addition it will allow you to provide an alternate stubbed behavior.  In most testing scenarios just knowing what was called and the command line args is sufficient, but some
