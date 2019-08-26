@@ -369,5 +369,5 @@ https://docs.google.com/forms/d/19LpBBjykHPox18vrZvBbZUcK6gQTj7qv1O5hCduAZFU/vie
 https://docs.google.com/forms/d/e/1FAIpQLSeAbobIPLCVZD_ccgtMWBDAcN68oqbAJBQyDTSAQ1AkYuCp_g/viewform?usp=send_form[Sign the Corporate Agreement]
 
 == Code of Conduct
-This project adheres to the http://www.capitalone.io/codeofconduct[Open Code of Conduct]. By participating, you are expected to honor this code.
+This project adheres to the https://developer.capitalone.com/resources/code-of-conduct[Open Code of Conduct]. By participating, you are expected to honor this code.
 
