@@ -213,7 +213,7 @@ behavior that you provide.
 |--status|status code to return|No. Defaults to 0
 |===
 
-**shellmock_exect** supports returning a single or multiple responses for a given match criteria.  The responses will be returned in the order defined.  Once all response are seen the last response will be returned indefinitely.
+**shellmock_expect** supports returning a single or multiple responses for a given match criteria.  The responses will be returned in the order defined.  Once all response are seen the last response will be returned indefinitely.
 
 ==== examples
 
@@ -222,7 +222,7 @@ These examples assume that the "grep string1 file1" is the unix command being mo
 ===== Basic mock with success status
 
 If the **grep** command is run by a script under test it will return the default status of 0.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
 
 ```bash
 shellmock_expect grep --match "string1 file2"
@@ -238,7 +238,7 @@ shellmock_verify
 ===== Basic mock with failed status
 
 If the **grep** command is run by a script under test it will return the status of 1.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
 
 ```bash
 shellmock_expect grep --status 1 --match "string1 file2"
@@ -254,7 +254,7 @@ shellmock_verify
 ===== Mock with partial mock
 
 If the **grep** command is run by the script under test it will return a status 0 if arg1 is "string1" regardless of the rest of the args.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparision.
+to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
 
 ```bash
 shellmock_expect grep --status 0 --type partial --match string1
@@ -370,4 +370,3 @@ https://docs.google.com/forms/d/e/1FAIpQLSeAbobIPLCVZD_ccgtMWBDAcN68oqbAJBQyDTSA
 
 == Code of Conduct
 This project adheres to the https://developer.capitalone.com/resources/code-of-conduct[Open Code of Conduct]. By participating, you are expected to honor this code.
-
