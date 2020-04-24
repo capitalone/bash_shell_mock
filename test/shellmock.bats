@@ -310,7 +310,7 @@ teardown()
     skipIfNot regex-match
 
     shellmock_clean
-    shellmock_expect cp --status 0 --type regex --match "-a -s script\(\'t.*\)" --output "mock success"
+    shellmock_expect cp --status 0 --type regex --match "-a -s script\('t.*'\)" --output "mock success"
 
     run cp -a -s "script('testit')"
     [ "$status" = "0" ]
