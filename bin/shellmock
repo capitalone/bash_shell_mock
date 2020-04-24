@@ -279,7 +279,15 @@ shellmock_replay()
    # Otherwise return the output
    #----------------------------
    else
-       $ECHO "$output" | $AWK 'BEGIN{FS="%%"}{ for (i=1;i<=NF;i++) {print $i}}'
+       local out
+       out=$($ECHO "$output" | $AWK 'BEGIN{FS="%%"}{ for (i=1;i<=NF;i++) {print $i}}')
+
+       if [ "$status" -ge 0 ] ; then
+           $ECHO >&2 "$out"
+       else
+           $ECHO "$out"
+       fi
+
        return $status
    fi
 }

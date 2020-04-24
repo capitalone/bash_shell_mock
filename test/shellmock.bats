@@ -325,3 +325,10 @@ teardown()
 
 }
 
+@test "shellmock_expect --status 1 catch file descriptor 2" {
+
+    shellmock_clean
+    shellmock_expect cp --status 1 --match "--help" --output "mock success"
+
+    output=$(cp --help 2>&1) || [ "$?" = 1 ] && [ "$output" = "mock success" ]
+}
