@@ -209,7 +209,9 @@ behavior that you provide.
 |--match|Arguments passed to cmd that indicate a match to mock.|Yes.
 |--exec|Command string to execute for custom behavior.|No.
 |--source|Command string to source.|No.
-|--output|Text string to echo if there is a match. But if `--status` is more then 0, echo redirect message to stderr.|No.
+|--output|Text string to echo if there is a match.
+
+But if `--status` is more then 0, echo redirect message to stderr.|No.
 |--status|status code to return|No. Defaults to 0
 |===
 
