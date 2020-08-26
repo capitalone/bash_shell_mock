@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #--------------------------------------------------------------------------------
 # SPDX-Copyright: Copyright (c) Capital One Services, LLC
 # SPDX-License-Identifier: Apache-2.0
@@ -175,7 +175,7 @@ shellmock_expect()
 
         $MKDIR -p "$BATS_TEST_DIRNAME/tmpstubs"
         $TOUCH "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "#!/bin/bash" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        $ECHO "#!/usr/bin/env bash" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO "export BATS_TEST_DIRNAME=\"$BATS_TEST_DIRNAME\"" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO ". shellmock" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
