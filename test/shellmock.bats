@@ -106,6 +106,24 @@ teardown()
 
 }
 
+@test "shellmock_expect --status 0 partial-match with double quotes" {
+
+    skipIfNot partial-match
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type partial --match '"a file.c"' --output "mock success"
+
+    run cp "a file.c" b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run cp "a file.c" c
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+}
+
+
 @test "shellmock_expect failed matches" {
 
     skipIfNot failed-matches
