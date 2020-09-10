@@ -63,6 +63,33 @@ teardown()
 
 }
 
+#-----------------------------------------------------------------------------------
+# This test case demonstrates a normal bats test case where sample.sh is under test.
+# sample.sh will echo "sample found" based on the response to the grep command.
+# The default output will always be "sample found" because the script ensures
+# that grep will return 0.
+#-----------------------------------------------------------------------------------
+@test "sample.sh-success-partial-mock" {
+
+    shellmock_expect grep --status 0 --output "Mocked output for Partial Match" --type partial --match '"sample line"'
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+    shellmock_verify
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+
+}
+
 #----------------------------------------------------------------------------------------
 # This test case demonstrates that the else condition if grep does not find the match.
 # By forcing the status of 1 grep will cause the "sample not found" message to be echoed.
@@ -84,6 +111,6 @@ teardown()
 
 
     shellmock_verify
-    [ "${capture[0]}" = 'grep-stub sample line sample.out' ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
 }

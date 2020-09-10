@@ -66,7 +66,7 @@ teardown()
     [ "$output" = "mock a b failed" ]
 }
 
-@test "shellmock_expect multiple responses" {
+@test "shellmock_expect-multiple-responses" {
 
     skipIfNot multi-resources
 
@@ -120,7 +120,7 @@ teardown()
     run cp a c
     [ "$status" = "99" ]
 
-    grep 'No record match found cp \*a c\*' shellmock.err
+    grep 'No record match found stdin:\*\* cmd:cp args:\*a c\*' shellmock.err
 
 }
 
@@ -141,7 +141,7 @@ teardown()
 
     run cp b b
     [ "$status" = "99" ]
-    grep 'No record match found cp \*b b\*' shellmock.err
+    grep 'No record match found stdin:\*\* cmd:cp args:\*b b\*' shellmock.err
 
 }
 
@@ -310,13 +310,14 @@ teardown()
     skipIfNot regex-match
 
     shellmock_clean
-    shellmock_expect cp --status 0 --type regex --match "-a -s script\(\'t.*\)" --output "mock success"
+    shellmock_expect cp --status 0 --type regex --match "-a -s script\(\'t.*\'\)" --output "mock success"
 
     run cp -a -s "script('testit')"
     [ "$status" = "0" ]
     [ "$output" = "mock success" ]
 
     run cp -a -s "script('testit2')"
+
     [ "$status" = "0" ]
     [ "$output" = "mock success" ]
 
