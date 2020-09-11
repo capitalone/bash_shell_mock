@@ -215,13 +215,18 @@ behavior that you provide.
 |===
 |**Item**|**Description**|**Required?**
 |cmd|unix command to mock|Yes.
-|--type|Type of match **partial** or **exact**|No. Defaults to **exact**
-|--match|Arguments passed to cmd that indicate a match to mock.|Yes.
-|--exec|Command string to execute for custom behavior.|No.
-|--source|Command string to source.|No.
+|-t,--type|Type of argument list matching: **partial**, **exact** **regex**|No. Defaults to **exact**
+|-T,--stdin-match-type|Type of stdin matching: **partial**, **exact**, or **regex** | **exact**
+|-m,--match,--match-args|Arguments passed to cmd that indicate a match to mock.|No.
+|-M,--match-stdin|stdin data that is expected to be considered a match.|No.
+|-e,--exec|Command string to execute for custom behavior.|No.
+|-S,--source|Command string to source.|No.
 |--output|Text string to echo if there is a match.|No.
 |--status|status code to return|No. Defaults to 0
 |===
+
+Matching can be defined based on the argument list or the stdin data stream.  When both **--match** and **--match-stdin** are provided in an expectation then
+it becomes an AND of the two conditions.
 
 **shellmock_expect** supports returning a single or multiple responses for a given match criteria.  The responses will be returned in the order defined.  Once all response are seen the last response will be returned indefinitely.
 
