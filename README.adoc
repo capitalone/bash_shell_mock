@@ -231,6 +231,7 @@ run testscript.sh
 [ "$status" = "0" ]
 
 shellmock_verify
+[ "${capture[@]} = 1 ]
 [ "${capture[0]} = "grep-stub string1 file2" ]
 
 ```
@@ -247,6 +248,7 @@ run testscript.sh
 [ "$status" = "1" ]
 
 shellmock_verify
+[ "${capture[@]} = 1 ]
 [ "${capture[0]} = "grep-stub string1 file2" ]
 
 ```
@@ -263,8 +265,32 @@ run testscript.sh
 [ "$status" = "0" ]
 
 shellmock_verify
+[ "${capture[@]} = 2 ]
 [ "${capture[0]} = "grep-stub string1 file2" ]
 [ "${capture[1]} = "grep-stub string1 file3" ]
+
+```
+
+===== Mock with whitespace in the parameters
+
+If the **grep** command is run by the script under test it will return a status 0 if arg1 is "string1" regardless of the rest of the args.  In order
+to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
+
+If the --match argument were "'string1 string2' file", where the double quotes and single quotes are
+swapped, then shellmock treats the string as if it were '"string1 string2" file'.  That will be evident in the
+capture array.  This is due to how the shell treats " and '.  Shellmock can not always tell the difference so we have
+normalized them to double quotes.
+
+```bash
+shellmock_expect grep --status 0 --type partial --match '"string1 string2" file'
+
+run testscript.sh
+[ "$status" = "0" ]
+
+shellmock_verify
+[ "${capture[@]} = 2 ]
+[ "${capture[0]} = 'grep-stub "string1 string2" file2' ]
+[ "${capture[1]} = 'grep-stub "string1 string2" file3' ]
 
 ```
 
@@ -303,7 +329,7 @@ run testscript.sh
 [ "${line[1]}" = "mycustom output2" ]
 
 shellmock_verify
-[ "${capture[0]} = "grep-stub string1 file1" ]
+[ "${capture[0]} = "grep-stub tag1 string1 file1" ]
 
 ```
 

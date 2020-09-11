@@ -52,6 +52,11 @@ teardown()
     run cp a b
     [ "$status" = "0" ]
     [ "$output" = "mock a b success" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+
 }
 
 @test "shellmock_expect --status 1" {
@@ -64,6 +69,11 @@ teardown()
     run cp a b
     [ "$status" = "1" ]
     [ "$output" = "mock a b failed" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+
 }
 
 @test "shellmock_expect-multiple-responses" {
@@ -86,6 +96,11 @@ teardown()
     run cp a c
     [ "$status" = "99" ]
 
+    shellmock_verify
+    [ "${#capture[@]}" = "3" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a b' ]
+    [ "${capture[2]}" = 'cp-stub a c' ]
 
 }
 
@@ -104,11 +119,16 @@ teardown()
     [ "$status" = "0" ]
     [ "$output" = "mock success" ]
 
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a c' ]
+
 }
 
 @test "shellmock_expect --status 0 partial-match with double quotes" {
 
-    skipIfNot partial-match
+    skipIfNot partial-match-double
 
     shellmock_clean
     shellmock_expect cp --status 0 --type partial --match '"a file.c"' --output "mock success"
@@ -121,8 +141,37 @@ teardown()
     [ "$status" = "0" ]
     [ "$output" = "mock success" ]
 
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'cp-stub "a file.c" b' ]
+    [ "${capture[1]}" = 'cp-stub "a file.c" c' ]
+
 }
 
+@test "shellmock_expect --status 0 partial-match with single quotes" {
+
+    skipIfNot partial-match-single
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type partial --match "'a file.c'" --output "mock success"
+
+    run cp 'a file.c' b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run cp 'a file.c' c
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    # Because the input parameters into the mock are normalized the single
+    # quotes will appear as double quotes in the shellmock.out file.
+
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'cp-stub "a file.c" b' ]
+    [ "${capture[1]}" = 'cp-stub "a file.c" c' ]
+
+}
 
 @test "shellmock_expect failed matches" {
 
@@ -139,6 +188,11 @@ teardown()
     [ "$status" = "99" ]
 
     grep 'No record match found stdin:\*\* cmd:cp args:\*a c\*' shellmock.err
+
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a c' ]
 
 }
 
@@ -161,6 +215,12 @@ teardown()
     [ "$status" = "99" ]
     grep 'No record match found stdin:\*\* cmd:cp args:\*b b\*' shellmock.err
 
+    shellmock_verify
+    [ "${#capture[@]}" = "3" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a c' ]
+    [ "${capture[2]}" = 'cp-stub b b' ]
+
 }
 
 @test "shellmock_expect execute on match" {
@@ -173,6 +233,48 @@ teardown()
     run cp a b
     [ "$status" = "0" ]
     [ "$output" = "executed." ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+
+}
+
+@test "shellmock_expect execute on match args with double quotes" {
+
+    skipIfNot exec-on-match-with-double-quotes
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type exact  --match '"a b.c" b' --exec "echo executed."
+
+    run cp "a b.c" b
+    [ "$status" = "0" ]
+    [ "$output" = "executed." ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub "a b.c" b' ]
+
+}
+
+@test "shellmock_expect execute on match args with single quotes" {
+
+    skipIfNot exec-on-match-with-single-quotes
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --type exact  --match "'a b.c' b" --exec "echo executed."
+
+    run cp 'a b.c' b
+    [ "$status" = "0" ]
+    [ "$output" = "executed." ]
+
+    # Single quotes will be converted to double quotes when the arguments are normalized.
+    # so match on double quotes instead.
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub "a b.c" b' ]
+
 }
 
 @test "shellmock_expect execute on partial match" {
@@ -189,6 +291,12 @@ teardown()
     run cp a c
     [ "$status" = "0" ]
     [ "$output" = "executed." ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a c' ]
+
 }
 
 @test "shellmock_expect execute on match with {} substitution" {
@@ -201,6 +309,11 @@ teardown()
     run cp a b
     [ "$status" = "0" ]
     [ "$output" = "t1 a b tn" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+
 }
 
 @test "shellmock_expect source" {
@@ -213,6 +326,11 @@ teardown()
     . tmpstubs/test.bash
 
     [ "$TEST_PROP" = "test-prop" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'test.bash-stub' ]
+
 }
 
 @test "shellmock_expect multiple responses outside \$BATS_TEST_DIRNAME" {
@@ -243,6 +361,13 @@ teardown()
     # not a match
     run cp a c
     [ "$status" = "99" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "3" ]
+    [ "${capture[0]}" = 'cp-stub a b' ]
+    [ "${capture[1]}" = 'cp-stub a b' ]
+    [ "${capture[2]}" = 'cp-stub a c' ]
+
 }
 
 @test "shellmock_clean inside directory with spaces" {
@@ -285,6 +410,11 @@ teardown()
     run cp
     [ "$status" = "0" ]
     [ "$output" = "executed." ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'cp-stub' ]
+
 }
 
 @test "shellmock_verify inside directory with spaces" {
@@ -321,6 +451,11 @@ teardown()
     run foo --version
     [ "$status" = "0" ]
     [ "$output" = "Foo version" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = "foo-stub --version" ]
+
 }
 
 @test "shellmock_expect --status 0 regex-match" {
@@ -341,6 +476,12 @@ teardown()
 
     run cp -a -s "script('Testit2')"
     [ "$status" = "99" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "3" ]
+    [ "${capture[0]}" = "cp-stub -a -s script('testit')" ]
+    [ "${capture[1]}" = "cp-stub -a -s script('testit2')" ]
+    [ "${capture[2]}" = "cp-stub -a -s script('Testit2')" ]
 
 }
 

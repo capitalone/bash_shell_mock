@@ -277,8 +277,12 @@ shellmock_expect()
     #    forward implies executing an alternative command vs mocking
     #
     #---------------------------------------------------------------
+    if [ "$MTYPE" != "X" ]; then
+        MATCH_NORM=`eval shellmock_normalize_args "$MATCH"`
+    else
+        MATCH_NORM=$MATCH
+    fi
 
-    MATCH_NORM=`shellmock_normalize_args $MATCH`
     shellmock_debug "shellmock_expect: normalized arg match string *$MATCH* as *$MATCH_NORM*"
     if [ "$FORWARD" != "" ]; then
         $ECHO "$MATCH_NORM@@FORWARD@@$FORWARD@@0@@$MTYPE@@$IN_MTYPE@@$MATCH_IN" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd.playback.capture.tmp"
@@ -366,6 +370,8 @@ shellmock_replay()
    elif [ "$action" = "FORWARD" ]; then
        local tmpcmd
        $ECHO "$output" | $GREP "{}" > /dev/null
+
+       # SUBSTITION Feature
        # If {} is present that means pass the match pattern into the exec script.
        if [ $? -eq 0 ]; then
            local tmpmatch=$(shellmock_escape_special_chars $match)

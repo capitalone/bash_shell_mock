@@ -64,14 +64,12 @@ teardown()
 }
 
 #-----------------------------------------------------------------------------------
-# This test case demonstrates a normal bats test case where sample.sh is under test.
-# sample.sh will echo "sample found" based on the response to the grep command.
-# The default output will always be "sample found" because the script ensures
-# that grep will return 0.
+# This test case demonstrates mocking the grep command using the partial mock feature.
+# The sample.sh calls grep with two arguments.  The first argument is "sample line".
 #-----------------------------------------------------------------------------------
 @test "sample.sh-success-partial-mock" {
 
-    shellmock_expect grep --status 0 --output "Mocked output for Partial Match" --type partial --match '"sample line"'
+    shellmock_expect grep --status 0 --type partial --match '"sample line"'
 
     run ./sample.sh
 
@@ -86,6 +84,39 @@ teardown()
     [ "$output" = "sample found" ]
 
     shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+
+}
+
+#-----------------------------------------------------------------------------------
+# This test case demonstrates mocking the grep command using the partial mock feature.
+# The sample.sh calls grep with two arguments.  The first argument is "sample line".
+#
+# The only difference between this and the previous test is that the argument is passed
+# as single quotes 'sample line'.
+#
+# In that case you will notice that the command[] matches show as double quotes vs
+# single quotes. That is because the arguments are normalized to double quotes.
+#-----------------------------------------------------------------------------------
+@test "sample.sh-success-partial-mock-with-single-quotes" {
+
+    shellmock_expect grep --status 0 --type partial --match '"sample line"'
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
     [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
 }
