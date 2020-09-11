@@ -54,6 +54,16 @@ teardown()
 
 ```
 
+== Environment Variables
+|===
+| Name | Purpose
+| TEST_FUNCTION | Bats variable the is used to control debugging i shellmock. When
+set to the name of a test case then all tmp and debug output is
+preserved.
+| SHELLMOCK_V1_COMPATIBILITY | v1.2 introduced logic that handles matching
+arguments differently when they contain spaces.  As a result old tests
+could fail to match.  This flag allows the old tests to continue to pass.
+|===
 
 == Adding Mocks in one of your tests
 

@@ -38,23 +38,15 @@ skipIfNot()
     fi
 }
 
-#--------------------------------------------------------------
-# The arguments could have whitespace which we want to preserve
-# at times.  So we encapsulate all arguments with "
+#----------------------------------------------------------------------------
+# This function creates a single string containing all $*.  In the process
+# it checks to see if an arg contains a space and if so then it places
+# double quotes around the argument.
 #
-# Quotes in the matching process can cause issues.  This approach
-# would still have issues potentially if the arg separators are part of the input.
-#--------------------------------------------------------------
-shellmock_normalize_args2() {
-    shellmock_debug "shellmock_normalize_args: before *$**"
-    args=""
-    for arg in "$@"; do
-        args="$args$arg${SHELLMOCK_ARG_SEPARATOR}"
-    done
-    shellmock_debug "shellmock_normalize_args: after *$args*"
-    echo $args
-}
-
+# Note: Even if single quotes were originally used the string and
+# any matching in the ${capture{@]} arrary will have double quotes around
+# the arguments.
+#----------------------------------------------------------------------------
 shellmock_normalize_args() {
     shellmock_debug "shellmock_normalize_args: before *$**"
 
@@ -254,15 +246,20 @@ shellmock_expect()
         $ECHO "#!/usr/bin/env bash" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO "export BATS_TEST_DIRNAME=\"$BATS_TEST_DIRNAME\"" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO ". shellmock" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "if [ -p /dev/stdin ]; then" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "    let cnt=0" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "    while IFS= read line; do" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "          stdin[$cnt]=$line" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "          let cnt=$cnt+1" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "      done" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "fi" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO 'shellmock_capture_cmd '${cmd}'-stub "`shellmock_normalize_args "$@"`"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
-        $ECHO "shellmock_replay $cmd "'"`shellmock_normalize_args "$@"`"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "if [ -p /dev/stdin ]; then" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "    let cnt=0" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "    while IFS= read line; do" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "          stdin[$cnt]=$line" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "          let cnt=$cnt+1" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "      done" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+#        $ECHO "fi" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        if [ -z $SHELLMOCK_V1_COMPATIBILITY ]; then
+             $ECHO 'shellmock_capture_cmd '${cmd}'-stub "`shellmock_normalize_args "$@"`"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+             $ECHO "shellmock_replay $cmd "'"`shellmock_normalize_args "$@"`"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        else
+             $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+             $ECHO "shellmock_replay $cmd "'"$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+        fi
         $ECHO 'status=$?' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO 'if [ $status -ne 0 ]; then' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO '    shellmock_capture_err $0 failed ' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
@@ -277,7 +274,7 @@ shellmock_expect()
     #    forward implies executing an alternative command vs mocking
     #
     #---------------------------------------------------------------
-    if [ "$MTYPE" != "X" ]; then
+    if [ "$MTYPE" != "X" ] && [ -z $SHELLMOCK_V1_COMPATIBILITY ]; then
         MATCH_NORM=`eval shellmock_normalize_args "$MATCH"`
     else
         MATCH_NORM=$MATCH
@@ -510,13 +507,12 @@ if [ -z "$WC" ]; then
     export WC=`which wc`
 fi
 
-# Allow consumers to redefine the separator if necessary.
-if [ -z $SHELLMOCK_ARG_SEPARATOR ]; then
-    export SHELLMOCK_ARG_SEPARATOR="~~"
-fi
-
 export BATS_TEST_DIRNAME
 export CAPTURE_FILE=$BATS_TEST_DIRNAME/shellmock.out
 export shellmock_capture_err=$BATS_TEST_DIRNAME/shellmock.err
 export shellmock_capture_debug=$BATS_TEST_DIRNAME/shellmock-debug.out
 export PATH=$BATS_TEST_DIRNAME/tmpstubs:$PATH
+
+if [ ! -z $SHELLMOCK_V1_COMPATIBILITY ]; then
+    shellmock_debug "shellmock: init: Running in V1 compatibility mode."
+fi

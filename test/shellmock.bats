@@ -28,6 +28,7 @@ setup()
 {
     # For testing setup the path so that install is not required.
     export PATH=../bin:$PATH
+    unset SHELLMOCK_V1_COMPATIBILITY
     . shellmock
 
 }
@@ -485,3 +486,19 @@ teardown()
 
 }
 
+@test "shellmock_expect quotes compatibility test" {
+
+    skipIfNot quotes-compatibility-v1.0-test
+
+    export SHELLMOCK_V1_COMPATIBILITY="enabled"
+
+    shellmock_clean
+    shellmock_expect cp --status 0 --match "a b c" --output "mock a b success"
+
+    run cp "a b" c
+    [ "$status" = "0" ]
+    [ "$output" = "mock a b success" ]
+
+    shellmock_verify
+    [ "${capture[0]}" = "cp-stub a b c" ]
+}
