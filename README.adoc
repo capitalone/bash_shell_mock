@@ -23,7 +23,7 @@ the "output" as the exit status and any standard output. In addition it will all
  advanced test cases may require new behavior.
 
 Given the bash command "cp file1 file2", a stub might be defined to return status 0.  The stub could also echo "cp file1 file2" to standard out.  Using Bats **status**, **line** or **output** variables
-you can verify that "cp file1 fil2" was written which would confirm that the script was called.  The example below is a snippet from a **bats** script. It is assumed that **mycmd** is the script being testing and it calls "cp file1 file2" during its execution.
+you can verify that "cp file1 file2" was written which would confirm that the script was called.  The example below is a snippet from a **bats** script. It is assumed that **mycmd** is the script being tested and it calls "cp file1 file2" during its execution.
 
 ```bats
 run mycmd
@@ -35,14 +35,23 @@ One approach for stubbing is to create bash scripts with the same names as the r
 
 == Enabling Mocks in your Bats tests
 
-The first step is to source **shellmock** in the **setup()** function and call the **shellmock_cleanup** function from the bats **teardown** function.  To assist in troubleshooting a new variable **TEST_FUNCTION** was added that
-can be used to restrict testing to a single function and skipping all others.  In that case I choose not to clean up so that I can better troubleshoot any test failures associated with mocking.  The section below is boiler plate and I would add to all my test files.
+The first step is to source **shellmock** in the **setup()** function and call the **shellmock_cleanup** function from the bats **teardown** function.  These two steps will make **shellmock** functions available
+to your testcases and perform appropriate cleanup in between tests.
 
+Adding the **skipIfNot** function in **setup()** will help with troubleshooting.  This will allow
+users to define the **TEST_FUNCTION** environment variable to run a single test and turn on the associated debug logs.
+
+The link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo provides an example of how to setup **shellmock** in a **bats** script.
 ```bash
 
 setup()
 {
+    # Source the shellmock functions into the shell.
     . shellmock
+
+    skipIfNot "$BATS_TEST_DESCRIPTION"
+
+    shellmock_clean
 }
 
 teardown()
@@ -57,9 +66,10 @@ teardown()
 == Environment Variables
 |===
 | Name | Purpose
-| TEST_FUNCTION | Bats variable the is used to control debugging i shellmock. When
+| TEST_FUNCTION | Shellmock variable that is used to run single tests and control debugging output in shellmock. When
 set to the name of a test case then all tmp and debug output is
-preserved.
+preserved after the test completes.  If you give each test a unique name then only that one test will be executed.  You have to leverage the **skipIfNot** function in **setup** or in the
+test case to take advantage of the feature.
 | SHELLMOCK_V1_COMPATIBILITY | v1.2 introduced logic that handles matching
 arguments differently when they contain spaces.  As a result old tests
 could fail to match.  This flag allows the old tests to continue to pass.
@@ -67,18 +77,78 @@ could fail to match.  This flag allows the old tests to continue to pass.
 
 == Adding Mocks in one of your tests
 
-In the link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo, the status code from **grep** is used to control the logic flow of the script.  We can use Shellmock's **shellmock_expect** command to simulate a failure scenario when the target parameters are seen.
-In the snippet below the return status will be "1" when the command line arguments are **"sample" sample.out**.  If **grep** is called with any other arguments then a failure will be returned with status **99**.
+In the link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo, the status code from **grep** is used to control the logic flow of the script.  We can use Shellmock's **shellmock_expect** command to simulate various success and failures scenarios depending on the arguments and stdin passed into the **grep** command.
+
+**sample.sh**
+```bash
+echo "sample line 1"  > sample.out
+
+grep "sample line" sample.out > /dev/null
+if [ $? -ne 0 ]; then
+    echo "sample not found"
+    exit 1
+fi
+
+echo "sample found"
+```
+
+In the sections that follow we will create some test cases against **sample.sh**.
+
+=== Success Scenario using exact matching
+This testcase is simply using bats and calling the real **grep** command.  No mocking was involved.  This was included to
+show that testcases can be a mixture of mocks and real commands.
+
+```bash
+@test "sample.sh-success" {
+
+    run ./sample.sh
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+}
+```
+
+=== Failure Scenario using exact matching
+In this failure scenario we are creating a stub that will return a status of 1 if the input arguments to **grep** is called as below:
+
+```
+grep "sample line" sample.out.
+
+or
+
+grep 'sample line' sample.out
+
+NOTE: These will look the same in the stub's input args.
+```
+
+The testcase is using the default match type which is an exact match.
 
 ```bash
 @test "sample.sh-failure" {
 
-    shellmock_expect grep --status 1 --match '"sample" sample.out'
+
+    shellmock_expect grep --status 1 --match '"sample line" sample.out'
+
+    shellmock_debug "starting the test"
 
     run ./sample.sh
+
+    # Only significant when debugging is occurring it captures bats variables to output files
+    # to make it easier to see what you are missing.
+    shellmock_dump
+
     [ "$status" = "1" ]
     [ "$output" = "sample not found" ]
 
+    # called to create the capture array to allow expect verifications.
+    shellmock_verify
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
 }
 ```
@@ -86,24 +156,105 @@ In the snippet below the return status will be "1" when the command line argumen
 After the status and output of the script has been validated as needed, then the final piece is to verify that all of the expected mocks were called. The function **shellmock_verify** reads the **shellmock.out** file which contains a record
 of all mock invocations.  The lines of the file are written to an array variable called **capture**.
 
-As you will note there are some challenges with quotes in the verifcation pass.  The quotes do not exist in the verification line.  There maybe ways to preserve them, but initially it proved to be a challenge.  This was good enough for me for now.
+NOTE: Arguments that contain quotes in them were a challenge.  The scripting cannot tell the difference between single or double quotes.
+Therefore when single quotes are specified in the matching then **shellmock** converts them to double quotes.  The capture output will contain double quotes even if
+the original script was called with single quotes.
 
+The original version 1 did not make any distinction and this new feature was added in v2.  In v1 no quotes would appear in the verification output.  It would appear like three arguments instead of two.
+
+=== Success Scenario leveraging a partial mock
+In this test scenario we are only matching one of the arguments: "sample line".  Any filename could be passed and still match the mock.
 
 ```bash
-@test "sample.sh-failure" {
+@test "sample.sh-success-partial-mock" {
 
-    shellmock_expect grep --status 1 --match '"sample line" sample.out'
+    shellmock_expect grep --status 0 --type partial --match '"sample line"'
 
     run ./sample.sh
-    [ "$status" = "1" ]
-    [ "$output" = "sample not found" ]
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
 
     shellmock_verify
-    [ "${capture[0]}" = 'grep-stub sample line sample.out' ]
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
 }
 ```
 
+=== Success Scenario demonstrating single vs double quotes
+This testcase is the same as the one above except that single quotes where
+used around the argument.
+
+```bash
+@test "sample.sh-success-partial-mock-with-single-quotes" {
+
+    shellmock_expect grep --status 0 --type partial --match "'sample line'"
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+
+    # Note that it is "sample line" in the capture output.
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+
+}
+```
+
+=== Scenario with RegEx matching
+This scenario was easier to show just using grep directly from the bats file.
+I created two mocks for grep, one with file names that start with 's' and one with
+file names starting with 'b'.  There two mocks return 0 and 1 respectively.
+
+```bash
+@test "sample.sh-mock-with-regex" {
+
+    shellmock_expect grep --status 0 --type regex --match '"sample line" s.*'
+    shellmock_expect grep --status 1 --type regex --match '"sample line" b.*'
+
+    # The first two patterns leverage the first mock.
+    run grep "sample line" sample.out
+    [ "$status" = "0" ]
+
+    run grep "sample line" sample1.out
+    [ "$status" = "0" ]
+
+    # These two patterns leverage the second mock.
+    run grep "sample line" bfile.out
+    [ "$status" = "1" ]
+
+    run grep "sample line" bats.out
+    [ "$status" = "1" ]
+
+    shellmock_dump
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+    [ "${capture[1]}" = 'grep-stub "sample line" sample1.out' ]
+    [ "${capture[2]}" = 'grep-stub "sample line" bfile.out' ]
+    [ "${capture[3]}" = 'grep-stub "sample line" bats.out' ]
+
+}
+```
 To see a demonstration of the sample tests running, you will first need to install **shellmock** as described later and then follow the steps below.
 
 ```
@@ -115,8 +266,12 @@ You should expect to see output as follows:
 ```
  ✓ sample.sh-success
  ✓ sample.sh-failure
+ ✓ sample.sh-success-partial-mock
+ ✓ sample.sh-success-partial-mock-with-single-quotes
+ ✓ sample.sh-mock-with-regex
 
-2 tests, 0 failures
+5 tests, 0 failures
+
 ```
 == Shellmock Functions
 
@@ -187,8 +342,8 @@ TEST_FUNCTION is set.
 will dump the contains of the **bats** **$lines** variable which basically equates to
 any standard out that has been generated by the script under test.
 
-The output is captured in shellmock-debut.out and will only be available if
-TEST_FUNCTION is set.
+The output is captured in shellmock-debug.out and will only be available if
+**TEST_FUNCTION** is set.
 
 === shellmock_verify
 
@@ -215,7 +370,7 @@ behavior that you provide.
 |===
 |**Item**|**Description**|**Required?**
 |cmd|unix command to mock|Yes.
-|--type|Type of match **partial** or **exact**|No. Defaults to **exact**
+|--type|Type of match **partial** or **exact** or **regex**|No. Defaults to **exact**
 |--match|Arguments passed to cmd that indicate a match to mock.|Yes.
 |--exec|Command string to execute for custom behavior.|No.
 |--source|Command string to source.|No.
@@ -227,17 +382,17 @@ behavior that you provide.
 
 ==== examples
 
-These examples assume that the "grep string1 file1" is the unix command being mocked.
+These examples assume that the "grep string1 file1" is the unix command being mocked to be used in other scripts under test. For
+simplicity of understanding, I am calling the **grep** command directly from bats to show what the behavior would look like.
 
 ===== Basic mock with success status
-
-If the **grep** command is run by a script under test it will return the default status of 0.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
+This example mocks **grep** to return a 0 status when the input is "string1 file1".
+In order to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
 
 ```bash
 shellmock_expect grep --match "string1 file2"
 
-run testscript.sh
+run grep string1 file2
 [ "$status" = "0" ]
 
 shellmock_verify
@@ -248,13 +403,12 @@ shellmock_verify
 
 ===== Basic mock with failed status
 
-If the **grep** command is run by a script under test it will return the status of 1.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
+This scenario show a status of 1 being returned for the same inputs.
 
 ```bash
 shellmock_expect grep --status 1 --match "string1 file2"
 
-run testscript.sh
+run grep string1 file2
 [ "$status" = "1" ]
 
 shellmock_verify
@@ -265,13 +419,15 @@ shellmock_verify
 
 ===== Mock with partial mock
 
-If the **grep** command is run by the script under test it will return a status 0 if arg1 is "string1" regardless of the rest of the args.  In order
-to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
+If the **grep** command is run it will return a status 0 if arg1 is "string1" regardless of the rest of the args. Use **shellmock_verify** verify each invocation if desired.
 
 ```bash
 shellmock_expect grep --status 0 --type partial --match string1
 
-run testscript.sh
+run grep string1 file2
+[ "$status" = "0" ]
+
+run grep string1 file3
 [ "$status" = "0" ]
 
 shellmock_verify
@@ -287,14 +443,15 @@ If the **grep** command is run by the script under test it will return a status 
 to verify that the function was called you would need to use **shellmock_verify** and do a comparison.
 
 If the --match argument were "'string1 string2' file", where the double quotes and single quotes are
-swapped, then shellmock treats the string as if it were '"string1 string2" file'.  That will be evident in the
-capture array.  This is due to how the shell treats " and '.  Shellmock can not always tell the difference so we have
-normalized them to double quotes.
+swapped, then shellmock treats the string as if it were '"string1 string2" file'.
 
 ```bash
-shellmock_expect grep --status 0 --type partial --match '"string1 string2" file'
+shellmock_expect grep --status 0 --type partial --match '"string1 string2"'
 
-run testscript.sh
+run grep "string1 string2" file2
+[ "$status" = "0" ]
+
+run grep "string1 string2" file3
 [ "$status" = "0" ]
 
 shellmock_verify
@@ -305,15 +462,18 @@ shellmock_verify
 ```
 
 ===== Mock with regex
+This example shows the use of regex match type.
 
-If the **grep** command is run by the script under test it will return a status 0 if arg1 starts with an 's' and arg2 starts with an 'f'.
-
-The regular expression is evaluated by the *AWK* command.  Refer to *AWK* documentation for details.
+The regular expression is evaluated by the *AWK* command.  Refer to *AWK* documentation for details. Any *AWK*
+special characters will need to be escaped in the match criteria.
 
 ```bash
 shellmock_expect grep --status 0 --type regex --match "s.* f.*"
 
-run testscript.sh
+run grep string1 file2
+[ "$status" = "0" ]
+
+run grep string1 file3
 [ "$status" = "0" ]
 
 shellmock_verify
@@ -322,43 +482,36 @@ shellmock_verify
 
 ```
 
+===== Mock with custom script
 
-===== Mock with custom behavior with custom input args
-
-If the **grep** command is run by a script under test it will execute the custom script called "stubs/mycustom" and pass "tag1" as input.  By passing {} to the script then
-**shellmock** will replace {} with $* so that you will get all of the matched arguments passed into the custom script as well.
+If the **grep** command is run by a script under test it will return a status 0 if arg1 is "string1" and arg2 is "file1".  It will also write "mycustom string1 file1" to stdout.  The use of the {}
+in the --exec script will cause any arguments passed to the mocked script to be expanded in place of the braces as seen below.
 
 For this example you can verify the **status**, the **output**/**line**, and the **capture** variables.
 
 ```bash
-shellmock_expect grep --status 0 --type exact --match "string1 file1" -exec "stubs/mycustom tag1 {}"
+    shellmock_expect grep --status 0 --type partial --match "string1" --exec "echo mycustom {}"
 
-run testscript.sh
-[ "$status" = "0" ]
-[ "${line[0]}" = "mycustom output1" ]
-[ "${line[1]}" = "mycustom output2" ]
+    run grep string1 file1
 
-shellmock_verify
-[ "${capture[0]} = "grep-stub tag1 string1 file1" ]
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file1" ]
 
-```
+    run grep string1 file2
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file2" ]
 
-===== Mock with custom output
-
-If the **grep** command is run by a script under test it will return a status 0 if arg1 is "string1" and arg2 is "file1".  It will also write "some cool text" to stdout.
-For this example you can verify the **status**, the **output**/**line**, and the **capture** variables.
-
-```bash
-shellmock_expect grep --status 0 --type exact --match "string1 file1" --output "some cool text"
-
-run testscript.sh
-[ "$status" = "0" ]
-[ "${line[0]}" = "some cool text" ]
-
-shellmock_verify
-[ "${capture[0]} = "grep-stub string1 file1" ]
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'grep-stub string1 file1' ]
+    [ "${capture[1]}" = 'grep-stub string1 file2' ]
 
 ```
+
+This example shows the use of **echo** as the script, however, it could also be any user defined script that you
+want in place of the mocked command.  The {} braces are a way to forward arguments from the mock script into your script.
 
 == Installing Bash Shell Mock from source
 
