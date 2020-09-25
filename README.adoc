@@ -39,7 +39,7 @@ The first step is to source **shellmock** in the **setup()** function and call t
 to your testcases and perform appropriate cleanup in between tests.
 
 Adding the **skipIfNot** function in **setup()** will help with troubleshooting.  This will allow
-users to define the **TEST_FUNCTION** environment variable to run a single test and turn on the associated debug logs.
+users to define the **TEST_FUNCTION** environment variable to run a single test or a subset of tests and turn on the associated debug logs.
 
 The link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo provides an example of how to setup **shellmock** in a **bats** script.
 ```bash
@@ -77,11 +77,11 @@ could fail to match.  This flag allows the old tests to continue to pass.
 
 == Adding Mocks in one of your tests
 
-In the link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo, the status code from **grep** is used to control the logic flow of the script.  We can use Shellmock's **shellmock_expect** command to simulate various success and failures scenarios depending on the arguments and stdin passed into the **grep** command.
+In the link:sample-bats/sample.sh[sample.sh] script provided in the **shellmock** repo, the status code from **grep** is used to control the logic flow of the script.  We can use Shellmock's **shellmock_expect** command to simulate various success and failures scenarios depending on the arguments passed into the **grep** command.
 
 **sample.sh**
 ```bash
-echo "sample line 1"  > sample.out
+echo "sample line"  > sample.out
 
 grep "sample line" sample.out > /dev/null
 if [ $? -ne 0 ]; then
@@ -115,7 +115,7 @@ show that testcases can be a mixture of mocks and real commands.
 ```
 
 === Failure Scenario using exact matching
-In this failure scenario we are creating a stub that will return a status of 1 if the input arguments to **grep** is called as below:
+In this failure scenario we are creating a stub that will return a status of 1 if the **grep** is called in one of the two ways below:
 
 ```
 grep "sample line" sample.out.
@@ -160,7 +160,7 @@ NOTE: Arguments that contain quotes in them were a challenge.  The scripting can
 Therefore when single quotes are specified in the matching then **shellmock** converts them to double quotes.  The capture output will contain double quotes even if
 the original script was called with single quotes.
 
-The original version 1 did not make any distinction and this new feature was added in v2.  In v1 no quotes would appear in the verification output.  It would appear like three arguments instead of two.
+The original version 1 did not make any distinction and this new feature was added in version 2.  In v1 no quotes would appear in the verification output.  It would appear like three arguments were passed instead of two.
 
 === Success Scenario leveraging a partial mock
 In this test scenario we are only matching one of the arguments: "sample line".  Any filename could be passed and still match the mock.
@@ -222,7 +222,7 @@ used around the argument.
 === Scenario with RegEx matching
 This scenario was easier to show just using grep directly from the bats file.
 I created two mocks for grep, one with file names that start with 's' and one with
-file names starting with 'b'.  There two mocks return 0 and 1 respectively.
+file names starting with 'b'.  The two mocks return 0 and 1 respectively.
 
 ```bash
 @test "sample.sh-mock-with-regex" {
@@ -273,7 +273,11 @@ You should expect to see output as follows:
 5 tests, 0 failures
 
 ```
+
+The test bats files are another good source for examples as it contains examples of all of the **shellmock** features.
+
 == Shellmock Functions
+This section contains a list of the function provided by **shellmock** also with example usages.
 
 === skipIfNot
 
