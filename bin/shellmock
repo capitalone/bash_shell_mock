@@ -62,7 +62,7 @@ shellmock_normalize_args() {
       fi
       shellmock_debug "shellmock_normalize_args: args: $args"
     done
-    args=`echo $args|$AWK '{$1=$1;print}'`
+    args=$(echo $args|$AWK '{$1=$1;print}')
     shellmock_debug "shellmock_normalize_args: after *$args*"
     echo $args
 
@@ -275,7 +275,7 @@ shellmock_expect()
         $ECHO "fi" >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         $ECHO 'shellmock_debug shellmock_stub: $0-stub: stdin: "${stdin[@]}"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         if [ -z $SHELLMOCK_V1_COMPATIBILITY ]; then
-             $ECHO 'shellmock_capture_cmd "${stdin[@]}"'${cmd}'-stub "`shellmock_normalize_args "$@"`"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
+             $ECHO 'shellmock_capture_cmd "${stdin[@]}"'${cmd}'-stub "$(shellmock_normalize_args "$@")"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
              $ECHO "shellmock_replay $cmd "'"`shellmock_normalize_args "$@"`" "${stdin[@]}"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
         else
              $ECHO 'shellmock_capture_cmd '${cmd}'-stub "$*"' >> "$BATS_TEST_DIRNAME/tmpstubs/$cmd"
@@ -296,7 +296,7 @@ shellmock_expect()
     #
     #---------------------------------------------------------------
     if [ "$MTYPE" != "X" ] && [ -z $SHELLMOCK_V1_COMPATIBILITY ]; then
-        MATCH_NORM=`eval shellmock_normalize_args "$MATCH"`
+        MATCH_NORM=$(eval shellmock_normalize_args "$MATCH")
     else
         MATCH_NORM=$MATCH
     fi
@@ -432,7 +432,7 @@ shellmock_replay()
 #-------------------------------
 shellmock_capture_cmd()
 {
-    local cmd=`echo "$@" | awk '{$1=$1};1'`
+    local cmd=$(echo "$@" | awk '{$1=$1};1')
     # trim leading and trailing spaces from the command
     shellmock_debug "shellmock_capture_cmd: captured: *$cmd*"
     $ECHO "${cmd}" >> "$CAPTURE_FILE"
@@ -505,43 +505,43 @@ shellmock_verify()
 # key commands it needs.
 #-------------------------------------------------------------------------------------------------------
 if [ -z "$ECHO" ]; then
-    export ECHO=`which echo`
+    export ECHO=$(which echo)
 fi
 if [ -z "$CP" ]; then
-    export CP=`which cp`
+    export CP=$(which cp)
 fi
 if [ -z "$CAT" ]; then
-    export CAT=`which cat`
+    export CAT=$(which cat)
 fi
 if [ -z "$RM" ]; then
-    export RM=`which rm`
+    export RM=$(which rm)
 fi
 if [ -z "$AWK" ]; then
-    export AWK=`which awk`
+    export AWK=$(which awk)
 fi
 if [ -z "$GREP" ]; then
-    export GREP=`which grep`
+    export GREP=$(which grep)
 fi
 if [ -z "$MKDIR" ]; then
-    export MKDIR=`which mkdir`
+    export MKDIR=$(which mkdir)
 fi
 if [ -z "$TOUCH" ]; then
-    export TOUCH=`which touch`
+    export TOUCH=$(which touch)
 fi
 if [ -z "$CHMOD" ]; then
-    export CHMOD=`which chmod`
+    export CHMOD=$(which chmod)
 fi
 if [ -z "$SED" ]; then
-    export SED=`which sed`
+    export SED=$(which sed)
 fi
 if [ -z "$HEAD" ]; then
-    export HEAD=`which head`
+    export HEAD=$(which head)
 fi
 if [ -z "$TAIL" ]; then
-    export TAIL=`which tail`
+    export TAIL=$(which tail)
 fi
 if [ -z "$WC" ]; then
-    export WC=`which wc`
+    export WC=$(which wc)
 fi
 
 export BATS_TEST_DIRNAME

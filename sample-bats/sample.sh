@@ -21,7 +21,7 @@
 #     This is a sample script that we intend to test using the  mock framework.
 #
 #---------------------------------------------------------------------------------
-echo "sample line 1"  > sample.out
+echo "sample line"  > sample.out
 
 grep "sample line" sample.out > /dev/null
 if [ $? -ne 0 ]; then

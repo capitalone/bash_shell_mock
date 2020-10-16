@@ -51,8 +51,6 @@ teardown()
 
     run ./sample.sh
 
-    shellmock_dump
-
     [ "$status" = "0" ]
 
     # Validate using lines array.
@@ -60,6 +58,31 @@ teardown()
 
     # Optionally since this is a single line you can use $output
     [ "$output" = "sample found" ]
+
+}
+
+#----------------------------------------------------------------------------------------
+# This test case demonstrates that the else condition if grep does not find the match.
+# By forcing the status of 1 grep will cause the "sample not found" message to be echoed.
+# To pull this off we need to mock the grep command.
+#----------------------------------------------------------------------------------------
+@test "sample.sh-failure" {
+
+
+    shellmock_expect grep --status 1 --match '"sample line" sample.out'
+
+    shellmock_debug "starting the test"
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "1" ]
+    [ "$output" = "sample not found" ]
+
+
+    shellmock_verify
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
 }
 
@@ -101,7 +124,7 @@ teardown()
 #-----------------------------------------------------------------------------------
 @test "sample.sh-success-partial-mock-with-single-quotes" {
 
-    shellmock_expect grep --status 0 --type partial --match '"sample line"'
+    shellmock_expect grep --status 0 --type partial --match "'sample line'"
 
     run ./sample.sh
 
@@ -121,27 +144,53 @@ teardown()
 
 }
 
-#----------------------------------------------------------------------------------------
-# This test case demonstrates that the else condition if grep does not find the match.
-# By forcing the status of 1 grep will cause the "sample not found" message to be echoed.
-# To pull this off we need to mock the grep command.
-#----------------------------------------------------------------------------------------
-@test "sample.sh-failure" {
+#-----------------------------------------------------------------------------------
+# This sample simply demonstrates the regex matching using grep.
+#-----------------------------------------------------------------------------------
+@test "sample.sh-mock-with-regex" {
 
+    shellmock_expect grep --status 0 --type regex --match '"sample line" s.*'
+    shellmock_expect grep --status 1 --type regex --match '"sample line" b.*'
 
-    shellmock_expect grep --status 1 --match '"sample line" sample.out'
+    run grep "sample line" sample.out
+    [ "$status" = "0" ]
 
-    shellmock_debug "starting the test"
+    run grep "sample line" sample1.out
+    [ "$status" = "0" ]
 
-    run ./sample.sh
+    run grep "sample line" bfile.out
+    [ "$status" = "1" ]
+
+    run grep "sample line" bats.out
+    [ "$status" = "1" ]
 
     shellmock_dump
 
-    [ "$status" = "1" ]
-    [ "$output" = "sample not found" ]
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+    [ "${capture[1]}" = 'grep-stub "sample line" sample1.out' ]
+    [ "${capture[2]}" = 'grep-stub "sample line" bfile.out' ]
+    [ "${capture[3]}" = 'grep-stub "sample line" bats.out' ]
 
+}
+@test "sample.sh-mock-with-custom-script" {
+
+    shellmock_expect grep --status 0 --type partial --match "string1" --exec "echo mycustom {}"
+
+    run grep string1 file1
+
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file1" ]
+
+    run grep string1 file2
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file2" ]
 
     shellmock_verify
-    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
-
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'grep-stub string1 file1' ]
+    [ "${capture[1]}" = 'grep-stub string1 file2' ]
 }
