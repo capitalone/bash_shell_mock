@@ -51,8 +51,6 @@ teardown()
 
     run ./sample.sh
 
-    shellmock_dump
-
     [ "$status" = "0" ]
 
     # Validate using lines array.
@@ -84,6 +82,115 @@ teardown()
 
 
     shellmock_verify
-    [ "${capture[0]}" = 'grep-stub sample line sample.out' ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
 
+}
+
+#-----------------------------------------------------------------------------------
+# This test case demonstrates mocking the grep command using the partial mock feature.
+# The sample.sh calls grep with two arguments.  The first argument is "sample line".
+#-----------------------------------------------------------------------------------
+@test "sample.sh-success-partial-mock" {
+
+    shellmock_expect grep --status 0 --type partial --match '"sample line"'
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+
+}
+
+#-----------------------------------------------------------------------------------
+# This test case demonstrates mocking the grep command using the partial mock feature.
+# The sample.sh calls grep with two arguments.  The first argument is "sample line".
+#
+# The only difference between this and the previous test is that the argument is passed
+# as single quotes 'sample line'.
+#
+# In that case you will notice that the command[] matches show as double quotes vs
+# single quotes. That is because the arguments are normalized to double quotes.
+#-----------------------------------------------------------------------------------
+@test "sample.sh-success-partial-mock-with-single-quotes" {
+
+    shellmock_expect grep --status 0 --type partial --match "'sample line'"
+
+    run ./sample.sh
+
+    shellmock_dump
+
+    [ "$status" = "0" ]
+
+    # Validate using lines array.
+    [ "${lines[0]}" = "sample found" ]
+
+    # Optionally since this is a single line you can use $output
+    [ "$output" = "sample found" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "1" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+
+}
+
+#-----------------------------------------------------------------------------------
+# This sample simply demonstrates the regex matching using grep.
+#-----------------------------------------------------------------------------------
+@test "sample.sh-mock-with-regex" {
+
+    shellmock_expect grep --status 0 --type regex --match '"sample line" s.*'
+    shellmock_expect grep --status 1 --type regex --match '"sample line" b.*'
+
+    run grep "sample line" sample.out
+    [ "$status" = "0" ]
+
+    run grep "sample line" sample1.out
+    [ "$status" = "0" ]
+
+    run grep "sample line" bfile.out
+    [ "$status" = "1" ]
+
+    run grep "sample line" bats.out
+    [ "$status" = "1" ]
+
+    shellmock_dump
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'grep-stub "sample line" sample.out' ]
+    [ "${capture[1]}" = 'grep-stub "sample line" sample1.out' ]
+    [ "${capture[2]}" = 'grep-stub "sample line" bfile.out' ]
+    [ "${capture[3]}" = 'grep-stub "sample line" bats.out' ]
+
+}
+@test "sample.sh-mock-with-custom-script" {
+
+    shellmock_expect grep --status 0 --type partial --match "string1" --exec "echo mycustom {}"
+
+    run grep string1 file1
+
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file1" ]
+
+    run grep string1 file2
+    shellmock_dump
+    [ "$status" = "0" ]
+    [ "${lines[0]}" = "mycustom string1 file2" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "2" ]
+    [ "${capture[0]}" = 'grep-stub string1 file1' ]
+    [ "${capture[1]}" = 'grep-stub string1 file2' ]
 }
