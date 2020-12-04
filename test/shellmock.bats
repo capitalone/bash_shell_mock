@@ -502,3 +502,169 @@ teardown()
     shellmock_verify
     [ "${capture[0]}" = "cp-stub a b c" ]
 }
+
+@test "shellmock_expect --status 0 with stdin" {
+
+    skipIfNot status-0-stdin
+
+    shellmock_clean
+
+    #---------------------------------------------------------------
+    # Had issues getting the run echo "a b" | cat to work so
+    # I used the exec feature to create stubs to invoke the cat-stub
+    #---------------------------------------------------------------
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat'
+    shellmock_expect helper --status 0 --match "a c" --exec 'echo a c | cat'
+
+    shellmock_expect cat --status 0 --match-stdin "a b" --output "mock success"
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run helper a c
+    [ "$status" = "99" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'helper-stub a b' ]
+    [ "${capture[1]}" = 'a b | cat-stub' ]
+    [ "${capture[2]}" = 'helper-stub a c' ]
+    [ "${capture[3]}" = 'a c | cat-stub' ]
+
+}
+
+@test "shellmock_expect --status 0 with stdin and args" {
+
+    skipIfNot status-0-stdin-and-args
+
+    shellmock_clean
+
+    #---------------------------------------------------------------
+    # Had issues getting the run echo "a b" | cat to work so
+    # I used the exec feature to create stubs to invoke the cat-stub
+    #---------------------------------------------------------------
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat -t -v'
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat -p -q'
+
+    shellmock_expect cat --status 0 --match-args "-t -v" --match-stdin "a b" --output "mock success"
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run helper a b
+    [ "$status" = "99" ]
+
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'helper-stub a b' ]
+    [ "${capture[1]}" = 'a b | cat-stub -t -v' ]
+    [ "${capture[2]}" = 'helper-stub a b' ]
+    [ "${capture[3]}" = 'a b | cat-stub -p -q' ]
+
+}
+
+@test "shellmock_expect --status 0 with stdin and args multi-response" {
+
+    skipIfNot status-0-stdin-and-args-multi
+
+    shellmock_clean
+
+    #---------------------------------------------------------------
+    # Had issues getting the run echo "a b" | cat to work so
+    # I used the exec feature to create stubs to invoke the cat-stub
+    #---------------------------------------------------------------
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat -t -v'
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat -p -q'
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat -t -v'
+
+    shellmock_expect cat --status 0 --match-args "-t -v" --match-stdin "a b" --output "mock success 1"
+    shellmock_expect cat --status 0 --match-args "-t -v" --match-stdin "a b" --output "mock success 2"
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success 1" ]
+
+    run helper a b
+    [ "$status" = "99" ]
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success 2" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "6" ]
+    [ "${capture[0]}" = 'helper-stub a b' ]
+    [ "${capture[1]}" = 'a b | cat-stub -t -v' ]
+    [ "${capture[2]}" = 'helper-stub a b' ]
+    [ "${capture[3]}" = 'a b | cat-stub -p -q' ]
+    [ "${capture[4]}" = 'helper-stub a b' ]
+    [ "${capture[5]}" = 'a b | cat-stub -t -v' ]
+
+}
+
+@test "shellmock_expect --status 0 with stdin and regex" {
+
+    skipIfNot status-0-stdin-regex
+
+    shellmock_clean
+
+    #---------------------------------------------------------------
+    # Had issues getting the run echo "a b" | cat to work so
+    # I used the exec feature to create stubs to invoke the cat-stub
+    #---------------------------------------------------------------
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat'
+    shellmock_expect helper --status 0 --match "a c" --exec 'echo a c | cat'
+
+    shellmock_expect cat --status 0 --stdin-match-type regex --match-stdin "a.*" --output "mock success"
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run helper a c
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'helper-stub a b' ]
+    [ "${capture[1]}" = 'a b | cat-stub' ]
+    [ "${capture[2]}" = 'helper-stub a c' ]
+    [ "${capture[3]}" = 'a c | cat-stub' ]
+
+}
+
+@test "shellmock_expect --status 0 with stdin partial match" {
+
+    skipIfNot status-0-stdin-partial
+
+    shellmock_clean
+
+    #---------------------------------------------------------------
+    # Had issues getting the run echo "a b" | cat to work so
+    # I used the exec feature to create stubs to invoke the cat-stub
+    #---------------------------------------------------------------
+    shellmock_expect helper --status 0 --match "a b" --exec 'echo a b | cat'
+    shellmock_expect helper --status 0 --match "a c" --exec 'echo a c | cat'
+
+    shellmock_expect cat --status 0 --stdin-match-type regex --match-stdin "a" --output "mock success"
+
+    run helper a b
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    run helper a c
+    [ "$status" = "0" ]
+    [ "$output" = "mock success" ]
+
+    shellmock_verify
+    [ "${#capture[@]}" = "4" ]
+    [ "${capture[0]}" = 'helper-stub a b' ]
+    [ "${capture[1]}" = 'a b | cat-stub' ]
+    [ "${capture[2]}" = 'helper-stub a c' ]
+    [ "${capture[3]}" = 'a c | cat-stub' ]
+
+}
