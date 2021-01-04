@@ -372,7 +372,7 @@ behavior that you provide.
 ```bash
 usage: shellmock_expect [cmd] [--type partial | exact | regex ] [--status #] --match [arg1 arg2 arg3...] [--exec cmdstring ] [--source cmdstring] [--output texttoecho]
 ```
-
+[cols="35%,50%,10%"]
 |===
 |**Item**|**Description**|**Required?**
 |cmd|unix command to mock|Yes.
@@ -384,6 +384,7 @@ usage: shellmock_expect [cmd] [--type partial | exact | regex ] [--status #] --m
 |-S,--source|Command string to source.|No.
 |-o,--output|Text string to echo if there is a match.|No.
 |-s,--status|status code to return|No. Defaults to 0
+|===
 
 Matching can be defined based on the argument list or the stdin data stream.  When both **--match** and **--match-stdin** are provided in an expectation then
 it becomes an AND of the two conditions.
