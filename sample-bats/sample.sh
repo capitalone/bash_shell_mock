@@ -23,8 +23,7 @@
 #---------------------------------------------------------------------------------
 echo "sample line"  > sample.out
 
-grep "sample line" sample.out > /dev/null
-if [ $? -ne 0 ]; then
+if ! grep "sample line" sample.out > /dev/null; then
     echo "sample not found"
     exit 1
 fi

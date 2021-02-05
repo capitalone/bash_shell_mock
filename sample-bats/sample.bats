@@ -26,6 +26,7 @@
 setup()
 {
     # Source the shellmock functions into the shell.
+    #shellcheck source=../bin/shellmock
     . ../bin/shellmock
 
     skipIfNot "$BATS_TEST_DESCRIPTION"

@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+#shellcheck disable=SC2030,SC2031
+
 #--------------------------------------------------------------------------------
 # SPDX-Copyright: Copyright (c) Capital One Services, LLC
 # SPDX-License-Identifier: Apache-2.0
@@ -29,6 +31,7 @@ setup()
     # For testing setup the path so that install is not required.
     export PATH=../bin:$PATH
     unset SHELLMOCK_V1_COMPATIBILITY
+    #shellcheck source=../bin/shellmock
     . shellmock
 
 }
@@ -324,6 +327,7 @@ teardown()
     shellmock_clean
     shellmock_expect test.bash --status 0 --type exact  --match "" --source "./test.bash"
 
+    #shellcheck disable=SC1091
     . tmpstubs/test.bash
 
     [ "$TEST_PROP" = "test-prop" ]
@@ -429,12 +433,20 @@ teardown()
     [ "$status" = "0" ]
     [ "$output" = "executed." ]
 
+    #shellcheck disable=SC2031
     TEST_TEMP_DIR="$BATS_TEST_DIRNAME/temp dir"
     mkdir -p "$TEST_TEMP_DIR"
+
+    #shellcheck disable=SC2031
     mv "$BATS_TEST_DIRNAME/tmpstubs" "$TEST_TEMP_DIR/tmpstubs"
+
+    #shellcheck disable=SC2031
     export BATS_TEST_DIRNAME="$TEST_TEMP_DIR"
 
+    #shellcheck disable=SC2031
     mv "$CAPTURE_FILE" "$BATS_TEST_DIRNAME/shellmock.out"
+
+    #shellcheck disable=SC2031
     export CAPTURE_FILE="$BATS_TEST_DIRNAME/shellmock.out"
 
     shellmock_verify
