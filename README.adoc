@@ -564,8 +564,42 @@ full or relative pathing to the script.  **Shellmock** uses the PATH variable to
 == Dependencies
 This project requires some additional dependencies:
 
-- https://www.shellcheck.net[shellmock] - linting tool required for shellmock development.
+- https://github.com/koalaman/shellcheck/wiki[shellcheck] - linting tool required for shellmock development.
 - https://github.com/bats-core/bats-core[Bash Automated Testing System] - required to use shellmock for testing.
+
+== Linting Shellcheck
+Shellcheck has been integrated into the build process to provide the posix shell linting capabilities.
+
+There is one globally disabled shellcheck rule related to the use of $?.  It was quite rampant and it seemed good enough for now to ignore this one.
+```
+#!/usr/bin/env bash
+#shellcheck disable=SC2181
+```
+
+Others are disabled as required such as the use of single quotes in awk commands that wrap the awk scripts.  In those cases it was necessary to ignore SC2016 since we expect awk $ variables NOT to be expanded by the shell.
+
+Shellcheck allows file, function and line item exclusions.  In this project we favor line item exclusions.  To add a line item exception place the exclusion directly about the line of code.
+
+```
+#shellcheck disable=SC2016
+    AWK_STDIN_SCRIPT='BEGIN{FS="@@"}{if ($4=="E" && ($5...
+```
+
+It may make sense, however,  to exclude at a higher level if for some reason there is a high number of expected failures as is the case in the *shellmock_expect()* function.  That function generates a shell script itself so shellcheck has a field day in that one.  As a result we excluded two items within the function.
+
+```
+#shellcheck disable=SC2016,SC2129
+shellmock_expect()
+```
+
+== Looking up Error Details
+https://github.com/koalaman/shellcheck/wiki/Checks[Shellcheck Errors] describes how to lookup a particular error.  There is a page created for each one.  You access the page by appending the error code that was reported by shellcheck.
+```
+https://github.com/koalaman/shellcheck/wiki/Checks/[error]
+```
+
+At the time of this writing they also provided a link in the page to take you
+to an enumerated list of all errors.
 
 == Contributors
 We welcome Your interest in Capital One’s Open Source Projects (the “Project”). Any Contributor to the Project must accept and sign an Agreement indicating agreement to the license terms below. Except for the license granted in this Agreement to Capital One and to recipients of software distributed by Capital One, You reserve all right, title, and interest in and to Your Contributions; this Agreement does not impact Your rights to use Your own Contributions for any other purpose.
@@ -576,3 +610,4 @@ https://docs.google.com/forms/d/e/1FAIpQLSeAbobIPLCVZD_ccgtMWBDAcN68oqbAJBQyDTSA
 
 == Code of Conduct
 This project adheres to the https://developer.capitalone.com/resources/code-of-conduct[Open Code of Conduct]. By participating, you are expected to honor this code.
+
