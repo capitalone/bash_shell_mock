@@ -22,13 +22,13 @@ Typically, mocking frameworks return certain outputs when particular inputs are 
 the "output" as the exit status and any standard output. In addition it will allow you to provide an alternate stubbed behavior.  In most testing scenarios just knowing what was called and the command line args is sufficient, but some
  advanced test cases may require new behavior.
 
-Given the bash command "cp file1 file2", a stub might be defined to return status 0.  The stub could also echo "cp file1 file2" to standard out.  Using Bats **status**, **line** or **output** variables
+Given the bash command "cp file1 file2", a stub might be defined to return status 0.  The stub could also echo "cp file1 file2" to standard out.  Using Bats **status**, **lines** or **output** variables
 you can verify that "cp file1 file2" was written which would confirm that the script was called.  The example below is a snippet from a **bats** script. It is assumed that **mycmd** is the script being tested and it calls "cp file1 file2" during its execution.
 
 ```bats
 run mycmd
 [ "${status}" = "0" ]
-[ "${line[0]}" = "cp file1 file2" ]
+[ "${lines[0]}" = "cp file1 file2" ]
 ```
 
 One approach for stubbing is to create bash scripts with the same names as the real scripts or programs and then override the **PATH** to the stubs and there by short circuiting the real path.  Depending on the number of scripts to stub this can be taxing and the stubbing logic can become complex.  This is where **Shellmock** helps.  **Shellmock** lets you define the mocks inline within the **bats** tests.  It creates and manages the stub scripts behind the scenes. The added benefit is that you can view the tests and the test data together making tests easier to manage.
@@ -498,7 +498,7 @@ shellmock_verify
 If the **grep** command is run by a script under test it will return a status 0 if arg1 is "string1" and arg2 is "file1".  It will also write "mycustom string1 file1" to stdout.  The use of the {}
 in the --exec script will cause any arguments passed to the mocked script to be expanded in place of the braces as seen below.
 
-For this example you can verify the **status**, the **output**/**line**, and the **capture** variables.
+For this example you can verify the **status**, the **output**/**lines**, and the **capture** variables.
 
 ```bash
     shellmock_expect grep --status 0 --type partial --match "string1" --exec "echo mycustom {}"
