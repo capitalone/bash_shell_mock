@@ -1,0 +1,40 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+name: Main Workflow
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Disable shallow clone to improve relevancy
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v1.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install bats and shellmock
+        run: |
+          sudo add-apt-repository ppa:duggan/bats
+          sudo apt-get update
+          sudo apt-get install bats
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+      - name: Run bats tests for sample-bats
+        run: cd sample-bats && bats ./*.bats
+      - name: Run bats tests for test
+        run: cd test && bats ./*.bats
