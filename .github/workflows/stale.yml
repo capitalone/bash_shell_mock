@@ -1,0 +1,16 @@
+name: Close stale issues and PRs
+on:
+  schedule:
+    - cron: "0 0 * * *"
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-message: 'This issue is stale because it has been open 60 days without activity. Remove the stale label or comment to prevent this from being closed in 7 days.'
+          stale-pr-message: 'This PR is stale because it has been open 60 days without activity. Remove the stale label or comment to prevent this from being closed in 7 days.'
+          days-before-stale: 60
+          days-before-close: 7
+          exempt-issue-labels: 'pinned,security,later'
