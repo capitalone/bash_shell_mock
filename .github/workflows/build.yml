@@ -8,17 +8,6 @@ on:
   workflow_dispatch: # Allows running manually from Actions tab
 
 jobs:
-  sonarcloud:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0 # Disable shallow clone to improve relevancy
-    - name: SonarCloud Scan
-      uses: sonarsource/sonarcloud-github-action@v1.5
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-latest
