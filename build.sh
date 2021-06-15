@@ -42,5 +42,5 @@ lint build.sh
 echo "...Running bats tests for sample-bats"
 (cd sample-bats && bats ./*.bats)
 
-echo ".../Running bats tests for test"
+echo "...Running bats tests for test"
 (cd test && bats ./*.bats)
