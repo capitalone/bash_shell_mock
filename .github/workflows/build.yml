@@ -1,9 +1,12 @@
+name: Main Workflow
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-name: Main Workflow
+  workflow_dispatch: # Allows running manually from Actions tab
+
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
