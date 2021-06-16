@@ -3,7 +3,7 @@ name: Main Workflow
 on:
   push:
     branches: [ main ]
-  pull_request_target:
+  pull_request:
     branches: [ main ]
   workflow_dispatch: # Allows running manually from Actions tab
 
