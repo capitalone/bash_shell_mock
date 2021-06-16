@@ -3,11 +3,12 @@ name: Main Workflow
 on:
   push:
     branches: [ main ]
-  pull_request:
+  pull_request_target:
     branches: [ main ]
   workflow_dispatch: # Allows running manually from Actions tab
 
 jobs:
+  # WARNING: do not allow ${{ secrets.* }} in the below sections
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-latest
