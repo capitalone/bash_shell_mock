@@ -22,8 +22,8 @@ jobs:
       - name: Install bats and shellmock
         run: |
           sudo apt-get update
-          git clone https://github.com/sstephenson/bats.git
-          cd bats
+          git clone https://github.com/bats-core/bats-core.git
+          cd bats-core
           sudo ./install.sh /usr/local
           echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
       - name: Run bats tests for sample-bats
